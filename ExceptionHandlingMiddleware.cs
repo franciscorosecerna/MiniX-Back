@@ -1,14 +1,19 @@
-﻿namespace MiniX.Backend
+﻿using Amazon.Runtime.Internal;
+using System.Text.Json;
+
+namespace MiniX.Backend
 {
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+        private readonly IWebHostEnvironment _environment;
 
-        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger, IWebHostEnvironment environment)
         {
             _next = next;
             _logger = logger;
+            _environment = environment;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -20,22 +25,42 @@
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogWarning(ex, "Acceso no autorizado");
-                await WriteErrorAsync(context, 403, "UnauthorizedAccess", ex.Message);
+                await WriteErrorAsync(context, 401, "Unauthorized",
+                    "No tiene permisos para acceder a este recurso");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Recurso no encontrado");
+                await WriteErrorAsync(context, 404, "NotFound",
+                    "El recurso solicitado no fue encontrado");
             }
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Argumento inválido");
-                await WriteErrorAsync(context, 400, "InvalidArgument", ex.Message);
+                var message = _environment.IsDevelopment() ? ex.Message : "Solicitud inválida";
+                await WriteErrorAsync(context, 400, "InvalidArgument", message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Operación inválida");
+                var message = _environment.IsDevelopment() ? ex.Message : "La operación no puede completarse";
+                await WriteErrorAsync(context, 422, "InvalidOperation", message);
             }
             catch (TaskCanceledException)
             {
                 _logger.LogInformation("Solicitud cancelada por el cliente");
                 context.Response.StatusCode = 499;
             }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Operación cancelada");
+                context.Response.StatusCode = 499;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error no manejado");
-                await WriteErrorAsync(context, 500, "InternalServerError", "Error interno del servidor");
+                _logger.LogError(ex, "Error no manejado en la aplicación");
+                await WriteErrorAsync(context, 500, "InternalServerError",
+                    "Ha ocurrido un error interno en el servidor");
             }
         }
 
@@ -49,10 +74,9 @@
                 {
                     code,
                     message,
-                    traceId = context.TraceIdentifier
+                    traceId = context.TraceIdentifier                    
                 });
             }
         }
     }
-
 }
