@@ -18,6 +18,9 @@ namespace MiniX.Backend.Repositories
         Task<bool> UpdateFollowersCountAsync(string userId, int increment, IClientSessionHandle? session = null);
         Task<bool> UpdateFollowingCountAsync(string userId, int increment, IClientSessionHandle? session = null);
         Task<List<User>> SearchByUsernameAsync(string searchTerm, int limit = 10);
+        Task<bool> AddRefreshTokenAsync(string userId, RefreshToken token);
+        Task<bool> RevokeRefreshTokenAsync(string userId, string token);
+        Task<bool> ReplaceRefreshTokensAsync(string userId, List<RefreshToken> tokens);
     }
 
     public class UserRepository : IUserRepository
@@ -125,5 +128,37 @@ namespace MiniX.Backend.Repositories
                 )
             );
         }
+
+        public async Task<bool> AddRefreshTokenAsync(string userId, RefreshToken token)
+        {
+            var filter = Builders<User>.Filter.Eq(u => u.Id, userId);
+            var update = Builders<User>.Update.Push(u => u.RefreshTokens, token);
+
+            var result = await _users.UpdateOneAsync(filter, update);
+            return result.ModifiedCount > 0;
+        }
+
+        public async Task<bool> RevokeRefreshTokenAsync(string userId, string token)
+        {
+            var filter = Builders<User>.Filter.And(
+                Builders<User>.Filter.Eq(u => u.Id, userId),
+                Builders<User>.Filter.ElemMatch(u => u.RefreshTokens, rt => rt.Token == token)
+            );
+
+            var update = Builders<User>.Update.Set("refreshTokens.$.revokedAt", DateTime.UtcNow);
+
+            var result = await _users.UpdateOneAsync(filter, update);
+            return result.ModifiedCount > 0;
+        }
+
+        public async Task<bool> ReplaceRefreshTokensAsync(string userId, List<RefreshToken> tokens)
+        {
+            var filter = Builders<User>.Filter.Eq(u => u.Id, userId);
+            var update = Builders<User>.Update.Set(u => u.RefreshTokens, tokens);
+
+            var result = await _users.UpdateOneAsync(filter, update);
+            return result.ModifiedCount > 0;
+        }
+
     }
 }

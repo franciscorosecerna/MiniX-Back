@@ -35,5 +35,8 @@ namespace MiniX.Backend.Models
 
         [BsonElement("following")]
         public int FollowingCount { get; set; } = 0;
+
+        [BsonElement("refreshTokens")]
+        public List<RefreshToken> RefreshTokens { get; set; } = [];
     }
 }
