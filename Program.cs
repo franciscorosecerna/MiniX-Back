@@ -14,7 +14,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("NiggaPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "https://mini-xfront.vercel.app/")
+        policy.WithOrigins("http://localhost:5173", "https://minix-front.vercel.app/")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
