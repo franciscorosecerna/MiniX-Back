@@ -6,7 +6,7 @@ namespace MiniX.Backend.Models
     public class Post
     {
         [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
+        [BsonRepresentation(BsonType.String)]
         public required string Id { get; set; }
 
         [BsonRepresentation(BsonType.ObjectId)]
