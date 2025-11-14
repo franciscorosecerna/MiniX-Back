@@ -109,7 +109,7 @@ namespace MiniX.Backend.Controllers
         /// <param name="pageSize">The number of items per page (1-100, default: 20)</param>
         /// <returns>A list of posts for the timeline</returns>
         /// <response code="200">Returns the timeline posts</response>
-        [HttpGet("timeline")]
+        [HttpGet("/timeline")]
         [AllowAnonymous]
         [ProducesResponseType(typeof(List<PostResponseDto>), 200)]
         public async Task<IActionResult> GetTimeline([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
@@ -118,9 +118,13 @@ namespace MiniX.Backend.Controllers
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
             var timeline = await _postService.GetTimelineAsync(page, pageSize);
-
-            var response = timeline.Select(PostResponseDto.FromPost).ToList();
-            return Ok(response);
+            try
+            {
+                var response = timeline.Select(PostResponseDto.FromPost).ToList();
+                return Ok(response);
+            }catch{
+                return BadRequest(new{message= "fallo la req"});
+            }
         }
 
         /// <summary>
