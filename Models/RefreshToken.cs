@@ -14,5 +14,7 @@ namespace MiniX.Backend.Models {
 
         [BsonElement("revokedAt")]
         public DateTime? RevokedAt { get; set; }
+
+        public string? PlainToken { get; set; }
     }
 }
