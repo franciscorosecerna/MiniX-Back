@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using System.Reflection.Metadata;
 
 namespace MiniX.Backend.Models
 {

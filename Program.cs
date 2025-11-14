@@ -49,7 +49,6 @@ else
 {
     mongoSettings.ConnectionString = builder.Configuration.GetConnectionString("MongoDB")!;
 }
-
 // Registrar Mongo ahora sí con el connectionString correcto
 builder.Services.AddSingleton<IMongoClient>(_ =>
 {

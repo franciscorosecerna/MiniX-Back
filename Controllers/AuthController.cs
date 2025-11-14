@@ -76,7 +76,9 @@ namespace MiniX.Backend.Controllers
             return Ok(new
             {
                 accessToken = result.AccessToken,
-                message = result.Message
+                message = result.Message,
+                Url = result.ImageUrl,
+                DisplayName = result.Displayname
             });
         }
 
