@@ -118,13 +118,8 @@ namespace MiniX.Backend.Controllers
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
             var timeline = await _postService.GetTimelineAsync(page, pageSize);
-            try
-            {
-                var response = timeline.Select(PostResponseDto.FromPost).ToList();
-                return Ok(response);
-            }catch{
-                return BadRequest(new{message= "fallo la req"});
-            }
+            var response = timeline.Select(PostResponseDto.FromPost).ToList();
+            return Ok(response);
         }
 
         /// <summary>
