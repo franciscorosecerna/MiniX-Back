@@ -10,7 +10,7 @@ namespace MiniX.Backend.Controllers
     /// Controller for managing posts, including creation, retrieval, updates, and interactions
     /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/posts")]
     public class PostsController : ControllerBase
     {
         private readonly IPostService _postService;
