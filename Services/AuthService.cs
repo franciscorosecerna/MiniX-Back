@@ -1,11 +1,11 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 using MiniX.Backend.Models;
 using MiniX.Backend.Repositories;
-using MongoDB.Bson;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MiniX.Backend.Services
 {
@@ -14,83 +14,181 @@ namespace MiniX.Backend.Services
         Task<(bool Success, string Message)> RegisterAsync(string username, string email, string password, string displayName);
         Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> LoginAsync(string username, string password);
         Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> RefreshAsync(string refreshToken);
+        Task<bool> RevokeTokenAsync(string userId, string refreshToken);
+        Task<bool> RevokeAllTokensAsync(string userId);
     }
 
-    public class AuthService: IAuthService
+    public class AuthService : IAuthService
     {
         private readonly IUserRepository _users;
         private readonly IConfiguration _config;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUserRepository users, IConfiguration config)
+        public AuthService(IUserRepository users, IConfiguration config, ILogger<AuthService> logger)
         {
             _users = users;
             _config = config;
+            _logger = logger;
         }
 
         public async Task<(bool Success, string Message)> RegisterAsync(string username, string email, string password, string displayName)
         {
-            if (await _users.UsernameExistsAsync(username))
-                return (false, "El nombre de usuario ya está en uso.");
+            if (string.IsNullOrWhiteSpace(username) || username.Length < 3 || username.Length > 20)
+                return (false, "El nombre de usuario debe tener entre 3 y 20 caracteres.");
 
-            if (await _users.EmailExistsAsync(email))
+            if (!Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$"))
+                return (false, "El nombre de usuario solo puede contener letras, números y guiones bajos.");
+
+            if (string.IsNullOrWhiteSpace(email) || !IsValidEmail(email))
+                return (false, "El email no es válido.");
+
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+                return (false, "La contraseña debe tener al menos 8 caracteres.");
+
+            if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 50)
+                return (false, "El nombre de visualización debe tener máximo 50 caracteres.");
+
+            if (await _users.UsernameExistsAsync(username.ToLower()))
+                return (false, "El nombre de usuario ya existe.");
+
+            if (await _users.EmailExistsAsync(email.ToLower()))
                 return (false, "El email ya está registrado.");
 
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
 
             var user = new User
             {
-                Id = ObjectId.GenerateNewId().ToString(),
-                Username = username,
-                Email = email,
-                PasswordHash = passwordHash,
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                Username = username.ToLower(),
+                Email = email.ToLower(),
                 DisplayName = displayName,
-                CreatedAt = DateTime.UtcNow
+                PasswordHash = hashedPassword,
+                CreatedAt = DateTime.UtcNow,
+                RefreshTokens = []
             };
 
             await _users.CreateAsync(user);
 
+            _logger.LogInformation("Usuario registrado: {Username}", username);
+
             return (true, "Usuario registrado correctamente.");
         }
 
-        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> LoginAsync(string username, string password)
+        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)>
+            LoginAsync(string username, string password)
         {
+            username = username.Trim().ToLower();
+
             var user = await _users.GetByUsernameAsync(username);
 
-            if (user == null)
-                return (false, null, null, "Usuario no encontrado.");
+            var passwordForDummy = user?.PasswordHash ?? "$2a$11$dummyhashfordummypasswordverification";
+            var validPassword = BCrypt.Net.BCrypt.Verify(password, passwordForDummy);
 
-            if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-                return (false, null, null, "Skill issue.");
+            if (user == null || !validPassword)
+            {
+                _logger.LogWarning("Login fallido para: {Username}", username);
+                return (false, null, null, "Credenciales inválidas.");
+            }
 
             var accessToken = GenerateJwtToken(user);
             var refreshToken = CreateRefreshToken();
 
-            await _users.AddRefreshTokenAsync(user.Id, refreshToken);
+            await _users.AddRefreshTokenAsync(user.Id!, refreshToken);
 
-            return (true, accessToken, refreshToken.Token, "Login exitoso.");
+            return (true, accessToken, refreshToken.PlainToken!, "Login exitoso.");
         }
 
-        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> RefreshAsync(string refreshToken)
+
+        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)>
+            RefreshAsync(string refreshToken)
         {
-            var user = await _users.GetAllAsync()
-                .ContinueWith(t => t.Result.FirstOrDefault(u =>
-                    u.RefreshTokens.Any(rt =>
-                        rt.Token == refreshToken &&
-                        rt.Expires > DateTime.UtcNow &&
-                        rt.RevokedAt == null
-                    )));
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return (false, null, null, "Refresh token inválido.");
+
+            var hashed = HashToken(refreshToken);
+
+            var user = await _users.GetByRefreshTokenAsync(hashed);
 
             if (user == null)
+            {
+                _logger.LogWarning("Refresh inválido (no coincide con DB)");
                 return (false, null, null, "Refresh token inválido o expirado.");
+            }
 
-            await _users.RevokeRefreshTokenAsync(user.Id, refreshToken);
+            await _users.RevokeRefreshTokenAsync(user.Id!, hashed);
 
             var newRefresh = CreateRefreshToken();
-            await _users.AddRefreshTokenAsync(user.Id, newRefresh);
+            await _users.AddRefreshTokenAsync(user.Id!, newRefresh);
 
-            var newAccessToken = GenerateJwtToken(user);
+            var newJwt = GenerateJwtToken(user);
 
-            return (true, newAccessToken, newRefresh.Token, "Token renovado.");
+            return (true, newJwt, newRefresh.PlainToken!, "Token renovado.");
+        }
+
+        public async Task<bool> RevokeTokenAsync(string userId, string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken) || string.IsNullOrWhiteSpace(userId))
+                return false;
+
+            try
+            {
+                var hashed = HashToken(refreshToken);
+                var revoked = await _users.RevokeRefreshTokenAsync(userId, hashed);
+
+                if (revoked)
+                {
+                    _logger.LogInformation("Refresh token revocado para usuario: {UserId}", userId);
+                }
+                else
+                {
+                    _logger.LogWarning("No se pudo revocar el refresh token para usuario: {UserId}", userId);
+                }
+
+                return revoked;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al revocar refresh token para usuario: {UserId}", userId);
+                return false;
+            }
+        }
+
+        public async Task<bool> RevokeAllTokensAsync(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return false;
+
+            try
+            {
+                var user = await _users.GetByIdAsync(userId);
+                if (user == null)
+                    return false;
+
+                var revokedTokens = user.RefreshTokens
+                    .Where(rt => rt.RevokedAt == null)
+                    .Select(rt =>
+                    {
+                        rt.RevokedAt = DateTime.UtcNow;
+                        return rt;
+                    })
+                    .ToList();
+
+                revokedTokens.AddRange(user.RefreshTokens.Where(rt => rt.RevokedAt != null));
+
+                var success = await _users.ReplaceRefreshTokensAsync(userId, revokedTokens);
+
+                if (success)
+                {
+                    _logger.LogInformation("Todos los refresh tokens revocados para usuario: {UserId}", userId);
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al revocar todos los tokens para usuario: {UserId}", userId);
+                return false;
+            }
         }
 
         private string GenerateJwtToken(User user)
@@ -100,7 +198,7 @@ namespace MiniX.Backend.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id!),
                 new Claim("username", user.Username),
                 new Claim("displayName", user.DisplayName)
             };
@@ -109,21 +207,43 @@ namespace MiniX.Backend.Services
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(30),
-                signingCredentials: creds
-            );
+                expires: DateTime.UtcNow.AddMinutes(15),
+                signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         private static RefreshToken CreateRefreshToken()
         {
+            var plain = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+            var hashed = HashToken(plain);
+
             return new RefreshToken
             {
-                Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-                Expires = DateTime.UtcNow.AddDays(7),
-                CreatedAt = DateTime.UtcNow
+                Token = hashed,
+                PlainToken = plain,
+                CreatedAt = DateTime.UtcNow,
+                Expires = DateTime.UtcNow.AddDays(7)
             };
+        }
+
+        private static string HashToken(string token)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+            return Convert.ToBase64String(bytes);
+        }
+
+        private static bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }
