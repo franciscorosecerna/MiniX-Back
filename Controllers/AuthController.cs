@@ -7,7 +7,7 @@ using MiniX.Backend.Services;
 namespace MiniX.Backend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -76,7 +76,9 @@ namespace MiniX.Backend.Controllers
             return Ok(new
             {
                 accessToken = result.AccessToken,
-                message = result.Message
+                message = result.Message,
+                Url = result.ImageUrl,
+                DisplayName = result.Displayname
             });
         }
 
