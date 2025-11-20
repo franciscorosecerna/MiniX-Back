@@ -1,5 +1,6 @@
-﻿using MongoDB.Driver;
-using MiniX.Backend.Models;
+﻿using MiniX.Backend.Models;
+using MongoDB.Driver;
+using System.Text.RegularExpressions;
 
 namespace MiniX.Backend.Repositories
 {
@@ -11,13 +12,14 @@ namespace MiniX.Backend.Repositories
         Task<User?> GetByEmailAsync(string email);
         Task<List<User>> GetAllAsync();
         Task<User> CreateAsync(User user);
-        Task<bool> UpdateAsync(string id, User user);
+        Task<bool> UpdateAsync(string id, UpdateDefinition<User> update);
         Task<bool> DeleteAsync(string id);
         Task<bool> UsernameExistsAsync(string username);
         Task<bool> EmailExistsAsync(string email);
         Task<bool> UpdateFollowersCountAsync(string userId, int increment, IClientSessionHandle? session = null);
         Task<bool> UpdateFollowingCountAsync(string userId, int increment, IClientSessionHandle? session = null);
         Task<List<User>> SearchByUsernameAsync(string searchTerm, int limit = 10);
+        Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> ids);
         Task<bool> AddRefreshTokenAsync(string userId, RefreshToken token);
         Task<bool> RevokeRefreshTokenAsync(string userId, string token);
         Task<bool> ReplaceRefreshTokensAsync(string userId, List<RefreshToken> tokens);
@@ -53,9 +55,12 @@ namespace MiniX.Backend.Repositories
             return user;
         }
 
-        public async Task<bool> UpdateAsync(string id, User user)
+        public async Task<bool> UpdateAsync(string id, UpdateDefinition<User> update)
         {
-            var result = await _users.ReplaceOneAsync(u => u.Id == id, user);
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException(null, nameof(id));
+            ArgumentNullException.ThrowIfNull(update);
+
+            var result = await _users.UpdateOneAsync(u => u.Id == id, update);
             return result.ModifiedCount > 0;
         }
 
@@ -101,8 +106,23 @@ namespace MiniX.Backend.Repositories
 
         public async Task<List<User>> SearchByUsernameAsync(string searchTerm, int limit = 10)
         {
-            var filter = Builders<User>.Filter.Regex(u => u.Username, new MongoDB.Bson.BsonRegularExpression(searchTerm, "i"));
+            if (string.IsNullOrWhiteSpace(searchTerm)) 
+                return [];
+
+            var pattern = $"^{Regex.Escape(searchTerm)}";
+            var filter = Builders<User>.Filter.Regex(u => u.Username, 
+                new MongoDB.Bson.BsonRegularExpression(pattern, "i"));
             return await _users.Find(filter).Limit(limit).ToListAsync();
+        }
+
+        public async Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> ids)
+        {
+            var idList = ids.Where(i => !string.IsNullOrWhiteSpace(i)).Distinct().ToList();
+            if (idList.Count == 0) 
+                return [];
+
+            var filter = Builders<User>.Filter.In(u => u.Id, idList);
+            return await _users.Find(filter).ToListAsync();
         }
 
         public async Task CreateIndexesAsync()
