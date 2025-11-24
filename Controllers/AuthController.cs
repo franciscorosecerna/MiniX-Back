@@ -78,7 +78,8 @@ namespace MiniX.Backend.Controllers
                 accessToken = result.AccessToken,
                 message = result.Message,
                 Url = result.ImageUrl,
-                DisplayName = result.Displayname
+                DisplayName = result.Displayname,
+                Username = result.UserName
             });
         }
 
