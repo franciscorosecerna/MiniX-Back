@@ -34,13 +34,10 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// --------------------------------------------
-//   MONGO SETTINGS (ACÁ ESTABA EL PROBLEMA)
-// --------------------------------------------
+// --- MONGO CONFIG ---
 var mongoSettings = new MongoDbSettings();
 builder.Configuration.GetSection("MongoDB").Bind(mongoSettings);
 
-// Elegir string según DEV / PROD ANTES de registrar los servicios
 if (builder.Environment.IsDevelopment())
 {
     mongoSettings.ConnectionString = builder.Configuration.GetConnectionString("MongoDBdev")!;
@@ -49,7 +46,7 @@ else
 {
     mongoSettings.ConnectionString = builder.Configuration.GetConnectionString("MongoDB")!;
 }
-// Registrar Mongo ahora sí con el connectionString correcto
+
 builder.Services.AddSingleton<IMongoClient>(_ =>
 {
     return new MongoClient(mongoSettings.ConnectionString);
@@ -61,20 +58,16 @@ builder.Services.AddScoped<IMongoDatabase>(sp =>
     return client.GetDatabase(mongoSettings.DatabaseName);
 });
 
-// --------------------------------------------
-//   REPOS & SERVICES
-// --------------------------------------------
+// --- Repos & Services ---
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IFollowRepository, FollowRepository>();
 builder.Services.AddScoped<ILikeRepository, LikeRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
-
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPostService, PostService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
-// --------------------------------------------
-//   AUTH
-// --------------------------------------------
+// --- Auth ---
 builder.Services
     .AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -95,22 +88,18 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// --------------------------------------------
-//   SWAGGER
-// --------------------------------------------
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "MiniX API",
-        Version = "v1",
-        Description = "API estilo X (Twitter)"
+        Version = "v1"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Token JWT. Usar: Bearer {token}",
+        Description = "Token JWT: Bearer {token}",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -135,16 +124,8 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// --------------------------------------------
-//   MIDDLEWARES
-// --------------------------------------------
-app.UseHttpsRedirection();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("MinixPolicy");
 app.UseRateLimiter();

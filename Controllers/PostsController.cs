@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using MiniX.Backend.DTOs;
+using MiniX.Backend.Models;
 using MiniX.Backend.Services;
 using System.Security.Claims;
-using MiniX.Backend.DTOs;
 
 namespace MiniX.Backend.Controllers
 {
@@ -14,6 +16,7 @@ namespace MiniX.Backend.Controllers
     public class PostsController : ControllerBase
     {
         private readonly IPostService _postService;
+        private readonly IUserService _userService;
         private readonly ILogger<PostsController> _logger;
 
         /// <summary>
@@ -21,10 +24,11 @@ namespace MiniX.Backend.Controllers
         /// </summary>
         /// <param name="postService">The post service for business logic operations</param>
         /// <param name="logger">The logger for logging activities</param>
-        public PostsController(IPostService postService, ILogger<PostsController> logger)
+        public PostsController(IPostService postService, ILogger<PostsController> logger, IUserService userService)
         {
             _postService = postService;
             _logger = logger;
+            _userService = userService;
         }
 
         private string GetCurrentUserId()
@@ -46,12 +50,15 @@ namespace MiniX.Backend.Controllers
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetById(string id)
         {
-            var post = await _postService.GetPostByIdAsync(id);
-
+            var post = await _postService.GetPostByIdAsync(id);           
             if (post == null)
                 return NotFound(new { message = "Post no encontrado" });
 
-            var response = PostResponseDto.FromPost(post);
+            var user = await _userService.GetUserByIdAsync(post.AuthorId);
+            if (user == null)
+                return NotFound(new { message = "Autor no encontrado" });
+
+            var response = PostResponseDto.FromPost(post, user);
             return Ok(response);
         }
 
@@ -73,10 +80,17 @@ namespace MiniX.Backend.Controllers
 
             var posts = await _postService.GetUserPostsAsync(userId, page, pageSize);
             var totalCount = await _postService.GetUserPostsCountAsync(userId);
-
+            var user = await _userService.GetUserByIdAsync(userId);
+ 
             AddPaginationHeaders(page, pageSize, totalCount);
 
-            var response = posts.Select(PostResponseDto.FromPost).ToList();
+            List<PostResponseDto> response = [];
+
+            foreach (var post in posts)
+            {
+                response.Add(PostResponseDto.FromPost(post, user!));
+            }
+
             return Ok(response);
         }
 
@@ -98,7 +112,24 @@ namespace MiniX.Backend.Controllers
 
             var replies = await _postService.GetPostRepliesAsync(id, page, pageSize);
 
-            var response = replies.Select(PostResponseDto.FromPost).ToList();
+            List<PostResponseDto> response = [];
+
+            foreach (var post in replies)
+            {
+                var user = await _userService.GetUserByIdAsync(post.AuthorId);
+                if (user == null)
+                {
+                    var fallbackUser = new User
+                    {
+                        Id = "deleted",
+                        Username = "[deleted]",
+                        DisplayName = "[deleted]"
+                    };
+                    response.Add(PostResponseDto.FromPost(post, fallbackUser));
+                }
+                else response.Add(PostResponseDto.FromPost(post, user));
+            }
+
             return Ok(response);
         }
 
@@ -118,7 +149,24 @@ namespace MiniX.Backend.Controllers
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
             var timeline = await _postService.GetTimelineAsync(page, pageSize);
-            var response = timeline.Select(PostResponseDto.FromPost).ToList();
+
+            List<PostResponseDto> response = [];
+
+            foreach (var post in timeline)
+            {
+                var user = await _userService.GetUserByIdAsync(post.AuthorId);
+                if (user == null)
+                {
+                    var fallbackUser = new User
+                    {
+                        Id = "deleted",
+                        Username = "[deleted]",
+                        DisplayName = "[deleted]"
+                    };
+                    response.Add(PostResponseDto.FromPost(post, fallbackUser));
+                }
+                else response.Add(PostResponseDto.FromPost(post, user));
+            }
             return Ok(response);
         }
 
@@ -140,7 +188,24 @@ namespace MiniX.Backend.Controllers
 
             var posts = await _postService.GetPostsByHashtagAsync(tag, page, pageSize);
 
-            var response = posts.Select(PostResponseDto.FromPost).ToList();
+            List<PostResponseDto> response = [];
+
+            foreach (var post in posts)
+            {
+                var user = await _userService.GetUserByIdAsync(post.AuthorId);
+                if (user == null)
+                {
+                    var fallbackUser = new User
+                    {
+                        Id = "deleted",
+                        Username = "[deleted]",
+                        DisplayName = "[deleted]"
+                    };
+                    response.Add(PostResponseDto.FromPost(post, fallbackUser));
+                }
+                else response.Add(PostResponseDto.FromPost(post, user));
+            }
+
             return Ok(response);
         }
 
@@ -170,8 +235,9 @@ namespace MiniX.Backend.Controllers
                 dto.ImageUrl,
                 dto.ParentPostId
             );
+            var user = await _userService.GetUserByIdAsync(authorId);
 
-            var response = PostResponseDto.FromPost(post);
+            var response = PostResponseDto.FromPost(post, user!);
             return CreatedAtAction(nameof(GetById), new { id = post.Id }, response);
         }
 
@@ -204,8 +270,9 @@ namespace MiniX.Backend.Controllers
 
             if (updated == null)
                 return NotFound(new { message = "Post no encontrado" });
+            var user = await _userService.GetUserByIdAsync(authorId);
 
-            var response = PostResponseDto.FromPost(updated);
+            var response = PostResponseDto.FromPost(updated, user!);
             return Ok(response);
         }
 

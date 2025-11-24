@@ -12,7 +12,7 @@ namespace MiniX.Backend.Services
     public interface IAuthService
     {
         Task<(bool Success, string Message)> RegisterAsync(string username, string email, string password, string displayName);
-        Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? ImageUrl, string Message)> LoginAsync(string username, string password);
+        Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, string Message)> LoginAsync(string username, string password);
         Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> RefreshAsync(string refreshToken);
         Task<bool> RevokeTokenAsync(string userId, string refreshToken);
         Task<bool> RevokeAllTokensAsync(string userId);
@@ -74,7 +74,7 @@ namespace MiniX.Backend.Services
             return (true, "Usuario registrado correctamente.");
         }
 
-        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? ImageUrl, string Message)>
+        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, string Message)>
             LoginAsync(string username, string password)
         {
             username = username.Trim().ToLower();
@@ -87,7 +87,7 @@ namespace MiniX.Backend.Services
             if (user == null || !validPassword)
             {
                 _logger.LogWarning("Login fallido para: {Username}", username);
-                return (false, null, null, null, null ,"Credenciales inválidas.");
+                return (false, null, null, null, null, null ,"Credenciales inválidas.");
             }
 
             var accessToken = GenerateJwtToken(user);
@@ -95,7 +95,7 @@ namespace MiniX.Backend.Services
 
             await _users.AddRefreshTokenAsync(user.Id!, refreshToken);
 
-            return (true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.ProfileImageUrl, "Login exitoso.");
+            return (true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.Username, user.ProfileImageUrl, "Login exitoso.");
         }
 
 
