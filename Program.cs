@@ -17,13 +17,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("MinixPolicy", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:5173",
-            "https://minix-front.vercel.app"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials();
+        policy.WithOrigins("http://localhost:5173", "https://minix-front.vercel.app")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
