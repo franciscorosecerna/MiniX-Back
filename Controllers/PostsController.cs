@@ -65,22 +65,25 @@ namespace MiniX.Backend.Controllers
         /// <summary>
         /// Retrieves posts from a specific user with pagination support
         /// </summary>
-        /// <param name="userId">The unique identifier of the user</param>
+        /// <param name="userName">The unique identifier of the user</param>
         /// <param name="page">The page number for pagination (default: 1)</param>
         /// <param name="pageSize">The number of items per page (1-100, default: 20)</param>
         /// <returns>A list of posts from the specified user</returns>
         /// <response code="200">Returns the list of user posts</response>
-        [HttpGet("user/{userId}")]
+        [HttpGet("user/{userName}")]
         [AllowAnonymous]
         [ProducesResponseType(typeof(List<PostResponseDto>), 200)]
-        public async Task<IActionResult> GetByUser(string userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetByUser(string userName, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
-            var posts = await _postService.GetUserPostsAsync(userId, page, pageSize);
-            var totalCount = await _postService.GetUserPostsCountAsync(userId);
-            var user = await _userService.GetUserByIdAsync(userId);
+            var user = await _userService.GetUserByUsernameAsync(userName);
+            if(user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
+            var posts = await _postService.GetUserPostsAsync(user.Id, page, pageSize);
+            var totalCount = await _postService.GetUserPostsCountAsync(user.Id);
  
             AddPaginationHeaders(page, pageSize, totalCount);
 
@@ -88,7 +91,7 @@ namespace MiniX.Backend.Controllers
 
             foreach (var post in posts)
             {
-                response.Add(PostResponseDto.FromPost(post, user!));
+                response.Add(PostResponseDto.FromPost(post, user));
             }
 
             return Ok(response);
