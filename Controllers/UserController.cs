@@ -73,15 +73,6 @@ namespace MiniX.Backend.Controllers
             return Ok(MapToDto(user));
         }
 
-        [HttpGet]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAllUsers()
-        {
-            var users = await _userService.GetAllUsersAsync();
-            var response = users.Select(MapToDto).ToList();
-            return Ok(response);
-        }
-
         [HttpPut("{id}")]
         [Authorize]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)

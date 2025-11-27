@@ -1,4 +1,5 @@
-﻿using MiniX.Backend.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using MiniX.Backend.Models;
 using MiniX.Backend.Repositories;
 using MongoDB.Driver;
 
@@ -9,7 +10,7 @@ namespace MiniX.Backend.Services
         Task<User?> GetUserByIdAsync(string id);
         Task<User?> GetUserByUsernameAsync(string username);
         Task<User?> GetUserByEmailAsync(string email);
-        Task<List<User>> GetAllUsersAsync();
+        Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20);
         Task<bool> UpdateUserAsync(string id, User user);
         Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword);
         Task<bool> DeleteUserAsync(string id);
@@ -58,8 +59,11 @@ namespace MiniX.Backend.Services
             return await _userRepository.GetByEmailAsync(email);
         }
 
-        public async Task<List<User>> GetAllUsersAsync()
-            => await _userRepository.GetAllAsync();
+        public async Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20)
+        {
+            skip = (skip - 1) * limit;
+            return await _userRepository.GetAllAsync(skip, limit);
+        }
 
         public async Task<bool> UpdateUserAsync(string id, User user)
         {

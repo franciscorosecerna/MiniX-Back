@@ -10,7 +10,7 @@ namespace MiniX.Backend.Repositories
         Task<User?> GetByIdAsync(string id);
         Task<User?> GetByUsernameAsync(string username);
         Task<User?> GetByEmailAsync(string email);
-        Task<List<User>> GetAllAsync();
+        Task<List<User>> GetAllAsync(int skip = 0, int limit = 20);
         Task<User> CreateAsync(User user);
         Task<bool> UpdateAsync(string id, UpdateDefinition<User> update);
         Task<bool> DeleteAsync(string id);
@@ -46,8 +46,11 @@ namespace MiniX.Backend.Repositories
             => await _users.Find(u => u.Email == email)
                 .FirstOrDefaultAsync();
 
-        public async Task<List<User>> GetAllAsync()
-            => await _users.Find(_ => true).ToListAsync();
+        public async Task<List<User>> GetAllAsync(int skip = 0, int limit = 20)
+            => await _users.Find(_ => true)
+            .Skip(skip)
+            .Limit(limit)
+            .ToListAsync();
 
         public async Task<User> CreateAsync(User user)
         {
