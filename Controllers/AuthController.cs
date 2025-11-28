@@ -79,7 +79,8 @@ namespace MiniX.Backend.Controllers
                 message = result.Message,
                 Url = result.ImageUrl,
                 DisplayName = result.Displayname,
-                Username = result.UserName
+                Username = result.UserName,
+                result.IsAdmin
             });
         }
 

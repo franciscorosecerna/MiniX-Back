@@ -1,4 +1,5 @@
-﻿using MiniX.Backend.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using MiniX.Backend.Models;
 using MiniX.Backend.Repositories;
 using MongoDB.Driver;
 
@@ -9,8 +10,7 @@ namespace MiniX.Backend.Services
         Task<User?> GetUserByIdAsync(string id);
         Task<User?> GetUserByUsernameAsync(string username);
         Task<User?> GetUserByEmailAsync(string email);
-        Task<List<User>> GetAllUsersAsync();
-        Task<User> CreateUserAsync(User user, string? plainPassword = null);
+        Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20);
         Task<bool> UpdateUserAsync(string id, User user);
         Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword);
         Task<bool> DeleteUserAsync(string id);
@@ -59,38 +59,10 @@ namespace MiniX.Backend.Services
             return await _userRepository.GetByEmailAsync(email);
         }
 
-        public async Task<List<User>> GetAllUsersAsync()
-            => await _userRepository.GetAllAsync();
-
-        public async Task<User> CreateUserAsync(User user, string? plainPassword = null)
+        public async Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20)
         {
-            if (user == null) throw new ArgumentNullException(nameof(user));
-
-            user.Username = NormalizeUsername(user.Username);
-
-            if (string.IsNullOrWhiteSpace(user.Username))
-                throw new ArgumentException("Username inválido");
-
-            if (await _userRepository.UsernameExistsAsync(user.Username))
-                throw new InvalidOperationException($"El nombre de usuario '{user.Username}' ya está en uso");
-
-            if (await _userRepository.EmailExistsAsync(user.Email))
-                throw new InvalidOperationException($"El email '{user.Email}' ya está registrado");
-
-            if (!string.IsNullOrEmpty(plainPassword))
-            {
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
-            }
-            else if (string.IsNullOrEmpty(user.PasswordHash))
-            {
-                throw new InvalidOperationException("Password required");
-            }
-
-            user.FollowersCount = 0;
-            user.FollowingCount = 0;
-            user.CreatedAt = DateTime.UtcNow;
-
-            return await _userRepository.CreateAsync(user);
+            skip = (skip - 1) * limit;
+            return await _userRepository.GetAllAsync(skip, limit);
         }
 
         public async Task<bool> UpdateUserAsync(string id, User user)

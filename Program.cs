@@ -5,6 +5,7 @@ using MiniX.Backend;
 using MiniX.Backend.Repositories;
 using MiniX.Backend.Services;
 using MongoDB.Driver;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -82,7 +83,8 @@ builder.Services
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-            )
+            ),
+            RoleClaimType = ClaimTypes.Role
         };
     });
 

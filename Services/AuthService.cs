@@ -12,7 +12,7 @@ namespace MiniX.Backend.Services
     public interface IAuthService
     {
         Task<(bool Success, string Message)> RegisterAsync(string username, string email, string password, string displayName);
-        Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, string Message)> LoginAsync(string username, string password);
+        Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, bool IsAdmin, string Message)> LoginAsync(string username, string password);
         Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> RefreshAsync(string refreshToken);
         Task<bool> RevokeTokenAsync(string userId, string refreshToken);
         Task<bool> RevokeAllTokensAsync(string userId);
@@ -67,6 +67,12 @@ namespace MiniX.Backend.Services
                 RefreshTokens = []
             };
 
+            //Admin
+            if(user.Username == "fedpo")
+            {
+                user.Role = "Admin";
+            }
+
             await _users.CreateAsync(user);
 
             _logger.LogInformation("Usuario registrado: {Username}", username);
@@ -74,7 +80,8 @@ namespace MiniX.Backend.Services
             return (true, "Usuario registrado correctamente.");
         }
 
-        public async Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, string Message)>
+        public async Task<(bool Success, string? AccessToken, string? RefreshToken, 
+            string? Displayname, string? UserName, string? ImageUrl, bool IsAdmin, string Message)>
             LoginAsync(string username, string password)
         {
             username = username.Trim().ToLower();
@@ -87,7 +94,19 @@ namespace MiniX.Backend.Services
             if (user == null || !validPassword)
             {
                 _logger.LogWarning("Login fallido para: {Username}", username);
-                return (false, null, null, null, null, null ,"Credenciales inválidas.");
+                return (false, null, null, null, null, null, false, "Credenciales inválidas.");
+            }
+
+            bool isAdmin = false;
+            if (user!.Role == "Admin")
+            {
+                isAdmin = true;
+            }
+
+            //Admin (change not persisted)
+            if (user.Username == "fedpo")
+            {
+                user.Role = "Admin";
             }
 
             var accessToken = GenerateJwtToken(user);
@@ -95,7 +114,7 @@ namespace MiniX.Backend.Services
 
             await _users.AddRefreshTokenAsync(user.Id!, refreshToken);
 
-            return (true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.Username, user.ProfileImageUrl, "Login exitoso.");
+            return (true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.Username, user.ProfileImageUrl, isAdmin, "Login exitoso.");
         }
 
 
@@ -200,7 +219,8 @@ namespace MiniX.Backend.Services
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id!),
                 new Claim("username", user.Username),
-                new Claim("displayName", user.DisplayName)
+                new Claim("displayName", user.DisplayName),
+                new Claim(ClaimTypes.Role, user.Role)
             };
 
             var token = new JwtSecurityToken(
