@@ -43,5 +43,16 @@ namespace MiniX.Backend.Controllers
             var response = users.Select(MapToDto).ToList();
             return Ok(response);
         }
+
+        [HttpPost("password")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ChangeUserPasswordByUsername([FromBody] PasswordResetDto dto )
+        {
+            if (dto.id == "") return BadRequest(new { message = "No esta definido el usuario, ¿Habra un bug en la pagina?" });
+            if (dto.newpass == "" || dto.newpass.Length<8) return BadRequest(new { message = "No se ingreso una contraseña valida" });
+
+            var ret = await _userService.PasswordResetAsync(dto.id, dto.newpass);
+            return Ok(ret);
+        }
     }
 }

@@ -13,6 +13,7 @@ namespace MiniX.Backend.Services
         Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20);
         Task<bool> UpdateUserAsync(string id, User user);
         Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword);
+        Task<bool> PasswordResetAsync(string id, string newPlainPassword);
         Task<bool> DeleteUserAsync(string id);
         Task<bool> IsUsernameAvailableAsync(string username);
         Task<bool> IsEmailAvailableAsync(string email);
@@ -122,6 +123,18 @@ namespace MiniX.Backend.Services
 
             if (!BCrypt.Net.BCrypt.Verify(currentPlainPassword, user.PasswordHash))
                 throw new UnauthorizedAccessException("Password actual incorrecto");
+
+            var newHash = BCrypt.Net.BCrypt.HashPassword(newPlainPassword);
+            var update = Builders<User>.Update.Set(u => u.PasswordHash, newHash);
+            return await _userRepository.UpdateAsync(id, update);
+        }
+
+        public async Task<bool> PasswordResetAsync(string id, string newPlainPassword){
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException(null, nameof(id));
+            if (string.IsNullOrWhiteSpace(newPlainPassword)) throw new ArgumentException(null, nameof(newPlainPassword));
+
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null) throw new InvalidOperationException("Usuario no encontrado");
 
             var newHash = BCrypt.Net.BCrypt.HashPassword(newPlainPassword);
             var update = Builders<User>.Update.Set(u => u.PasswordHash, newHash);
