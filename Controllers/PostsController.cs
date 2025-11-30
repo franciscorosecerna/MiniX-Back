@@ -58,7 +58,10 @@ namespace MiniX.Backend.Controllers
             if (user == null)
                 return NotFound(new { message = "Autor no encontrado" });
 
-            var response = PostResponseDto.FromPost(post, user);
+            string youId = GetCurrentUserId();
+            var isLiked = await _postService.LikeExistsAsync(post.Id, youId);
+
+            var response = PostResponseDto.FromPost(post, user, isLiked);
             return Ok(response);
         }
 

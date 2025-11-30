@@ -158,6 +158,12 @@ namespace MiniX.Backend.Services
             _ = await _postRepository.GetByIdAsync(postId) 
                 ?? throw new ArgumentException("El post no existe");
 
+            var exist = await LikeExistsAsync(postId, userId);
+            if (!exist)
+            {
+                return false;
+            }
+
             var like = new Like
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
@@ -165,19 +171,9 @@ namespace MiniX.Backend.Services
                 PostId = postId,
                 CreatedAt = DateTime.UtcNow
             };
+            await _likeRepository.CreateAsync(like);
 
-            try
-            {
-                await _likeRepository.CreateAsync(like);
-
-                await _postRepository.IncrementLikesCountAsync(postId, 1);
-
-                return true;
-            }
-            catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
-            {
-                return false;
-            }
+            return await _postRepository.IncrementLikesCountAsync(postId, 1);
         }
 
         public async Task<bool> UnlikePostAsync(string postId, string userId)
