@@ -34,7 +34,7 @@ namespace MiniX.Backend.Controllers
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new UnauthorizedAccessException("Usuario no autenticado.");
+                ?? "";
         }
 
         /// <summary>
@@ -78,6 +78,8 @@ namespace MiniX.Backend.Controllers
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
+            string youId = GetCurrentUserId();
+
             var user = await _userService.GetUserByUsernameAsync(userName);
             if(user == null)
                 return NotFound(new { message = "Usuario no encontrado" });
@@ -91,7 +93,8 @@ namespace MiniX.Backend.Controllers
 
             foreach (var post in posts)
             {
-                response.Add(PostResponseDto.FromPost(post, user));
+                var isLiked = await _postService.LikeExistsAsync(post.Id, youId);
+                response.Add(PostResponseDto.FromPost(post, user, isLiked));
             }
 
             return Ok(response);
@@ -113,12 +116,15 @@ namespace MiniX.Backend.Controllers
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
+            string youId = GetCurrentUserId();
+
             var replies = await _postService.GetPostRepliesAsync(id, page, pageSize);
 
             List<PostResponseDto> response = [];
 
             foreach (var post in replies)
             {
+                var isLiked = await _postService.LikeExistsAsync(post.Id, youId);
                 var user = await _userService.GetUserByIdAsync(post.AuthorId);
                 if (user == null)
                 {
@@ -128,9 +134,9 @@ namespace MiniX.Backend.Controllers
                         Username = "[deleted]",
                         DisplayName = "[deleted]"
                     };
-                    response.Add(PostResponseDto.FromPost(post, fallbackUser));
+                    response.Add(PostResponseDto.FromPost(post, fallbackUser, isLiked));
                 }
-                else response.Add(PostResponseDto.FromPost(post, user));
+                else response.Add(PostResponseDto.FromPost(post, user, isLiked));
             }
 
             return Ok(response);
@@ -151,12 +157,15 @@ namespace MiniX.Backend.Controllers
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
+            string youId = GetCurrentUserId();
+
             var timeline = await _postService.GetTimelineAsync(page, pageSize);
 
             List<PostResponseDto> response = [];
 
             foreach (var post in timeline)
             {
+                var isLiked = await _postService.LikeExistsAsync(post.Id, youId);
                 var user = await _userService.GetUserByIdAsync(post.AuthorId);
                 if (user == null)
                 {
@@ -166,9 +175,9 @@ namespace MiniX.Backend.Controllers
                         Username = "[deleted]",
                         DisplayName = "[deleted]"
                     };
-                    response.Add(PostResponseDto.FromPost(post, fallbackUser));
+                    response.Add(PostResponseDto.FromPost(post, fallbackUser, isLiked));
                 }
-                else response.Add(PostResponseDto.FromPost(post, user));
+                else response.Add(PostResponseDto.FromPost(post, user, isLiked));
             }
             return Ok(response);
         }
@@ -189,12 +198,15 @@ namespace MiniX.Backend.Controllers
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
+            string youId = GetCurrentUserId();
+
             var posts = await _postService.GetPostsByHashtagAsync(tag, page, pageSize);
 
             List<PostResponseDto> response = [];
 
             foreach (var post in posts)
             {
+                var isLiked = await _postService.LikeExistsAsync(post.Id, youId);
                 var user = await _userService.GetUserByIdAsync(post.AuthorId);
                 if (user == null)
                 {
@@ -204,9 +216,9 @@ namespace MiniX.Backend.Controllers
                         Username = "[deleted]",
                         DisplayName = "[deleted]"
                     };
-                    response.Add(PostResponseDto.FromPost(post, fallbackUser));
+                    response.Add(PostResponseDto.FromPost(post, fallbackUser, isLiked));
                 }
-                else response.Add(PostResponseDto.FromPost(post, user));
+                else response.Add(PostResponseDto.FromPost(post, user, isLiked));
             }
 
             return Ok(response);
@@ -269,13 +281,14 @@ namespace MiniX.Backend.Controllers
 
             string authorId = GetCurrentUserId();
 
+            var isLiked = await _postService.LikeExistsAsync(id, authorId);
             var updated = await _postService.UpdatePostAsync(id, authorId, dto.Content, dto.ImageUrl);
 
             if (updated == null)
                 return NotFound(new { message = "Post no encontrado" });
             var user = await _userService.GetUserByIdAsync(authorId);
 
-            var response = PostResponseDto.FromPost(updated, user!);
+            var response = PostResponseDto.FromPost(updated, user!, isLiked);
             return Ok(response);
         }
 

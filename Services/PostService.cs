@@ -16,6 +16,7 @@ namespace MiniX.Backend.Services
         Task<Post?> UpdatePostAsync(string id, string authorId, string content, string? imageUrl = null);
         Task<bool> DeletePostAsync(string id, string authorId);
         Task<bool> LikePostAsync(string postId, string userId);
+        Task<bool> LikeExistsAsync(string postId, string userId);
         Task<bool> UnlikePostAsync(string postId, string userId);
         Task<int> GetUserPostsCountAsync(string authorId);
     }
@@ -210,5 +211,8 @@ namespace MiniX.Backend.Services
                 .Select(m => m.Groups[1].Value.ToLower())
                 .Distinct()];
         }
+
+        public Task<bool> LikeExistsAsync(string postId, string userId)
+            => _likeRepository.ExistsAsync(userId, postId);
     }
 }

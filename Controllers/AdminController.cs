@@ -11,12 +11,14 @@ namespace MiniX.Backend.Controllers
     public class AdminController : ControllerBase
     {
         private readonly IUserService _userService;
-        public AdminController(IUserService userService)
+        private readonly IPostService _postService;
+        public AdminController(IUserService userService, IPostService postService)
         {
             _userService = userService;
+            _postService = postService;
         }
 
-        private UserResponseDto MapToDto(User user)
+        private UserResponseDto MapToDto(User user, int count)
         {
             return new UserResponseDto
             {
@@ -28,7 +30,8 @@ namespace MiniX.Backend.Controllers
                 ProfileImageUrl = user.ProfileImageUrl,
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                PostsCount = count
             };
         }
 
@@ -40,7 +43,13 @@ namespace MiniX.Backend.Controllers
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
             var users = await _userService.GetUsersAsync(page, pageSize);
-            var response = users.Select(MapToDto).ToList();
+
+            List<UserResponseDto> response = [];
+            foreach (var user in users)
+            {
+                var x = await _postService.GetUserPostsCountAsync(user.Id);
+                response.Add(MapToDto(user, x));
+            }
             return Ok(response);
         }
 

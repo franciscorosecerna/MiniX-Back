@@ -13,6 +13,7 @@ namespace MiniX.Backend.DTOs
         public string? ImageUrl { get; set; }
         public string? ParentPostId { get; set; }
         public int LikesCount { get; set; }
+        public bool IsLiked { get; set; }
         public int RepliesCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
@@ -20,7 +21,7 @@ namespace MiniX.Backend.DTOs
         public string Visibility { get; set; } = "public";
         public List<string>? Hashtags { get; set; }
 
-        public static PostResponseDto FromPost(Post post, User user)
+        public static PostResponseDto FromPost(Post post, User user, bool like = false)
         {
             return new PostResponseDto
             {
@@ -33,6 +34,7 @@ namespace MiniX.Backend.DTOs
                 ImageUrl = post.ImageUrl,
                 ParentPostId = post.ParentPostId,
                 LikesCount = post.LikesCount,
+                IsLiked = like,
                 RepliesCount = post.RepliesCount,
                 CreatedAt = post.CreatedAt,
                 UpdatedAt = post.UpdatedAt,
