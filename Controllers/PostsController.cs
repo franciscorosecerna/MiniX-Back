@@ -34,7 +34,7 @@ namespace MiniX.Backend.Controllers
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? "";
+                ?? string.Empty;
         }
 
         /// <summary>

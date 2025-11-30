@@ -213,6 +213,17 @@ namespace MiniX.Backend.Services
         }
 
         public Task<bool> LikeExistsAsync(string postId, string userId)
-            => _likeRepository.ExistsAsync(userId, postId);
+        {
+            if (string.IsNullOrEmpty(postId))
+            {
+                return Task.FromResult(false);
+            }
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Task.FromResult(false);
+            }
+            return _likeRepository.ExistsAsync(userId, postId);
+        }
     }
 }
