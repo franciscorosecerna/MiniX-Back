@@ -16,6 +16,7 @@ namespace MiniX.Backend.Services
         Task<Post?> UpdatePostAsync(string id, string authorId, string content, string? imageUrl = null);
         Task<bool> DeletePostAsync(string id, string authorId);
         Task<bool> LikePostAsync(string postId, string userId);
+        Task<bool> LikeExistsAsync(string postId, string userId);
         Task<bool> UnlikePostAsync(string postId, string userId);
         Task<int> GetUserPostsCountAsync(string authorId);
     }
@@ -157,6 +158,12 @@ namespace MiniX.Backend.Services
             _ = await _postRepository.GetByIdAsync(postId) 
                 ?? throw new ArgumentException("El post no existe");
 
+            var exist = await LikeExistsAsync(postId, userId);
+            if (!exist)
+            {
+                return false;
+            }
+
             var like = new Like
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
@@ -164,19 +171,9 @@ namespace MiniX.Backend.Services
                 PostId = postId,
                 CreatedAt = DateTime.UtcNow
             };
+            await _likeRepository.CreateAsync(like);
 
-            try
-            {
-                await _likeRepository.CreateAsync(like);
-
-                await _postRepository.IncrementLikesCountAsync(postId, 1);
-
-                return true;
-            }
-            catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
-            {
-                return false;
-            }
+            return await _postRepository.IncrementLikesCountAsync(postId, 1);
         }
 
         public async Task<bool> UnlikePostAsync(string postId, string userId)
@@ -209,6 +206,20 @@ namespace MiniX.Backend.Services
             return [.. matches
                 .Select(m => m.Groups[1].Value.ToLower())
                 .Distinct()];
+        }
+
+        public Task<bool> LikeExistsAsync(string postId, string userId)
+        {
+            if (string.IsNullOrEmpty(postId))
+            {
+                return Task.FromResult(false);
+            }
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Task.FromResult(false);
+            }
+            return _likeRepository.ExistsAsync(userId, postId);
         }
     }
 }

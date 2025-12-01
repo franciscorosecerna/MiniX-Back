@@ -11,12 +11,14 @@ namespace MiniX.Backend.Controllers
     public class AdminController : ControllerBase
     {
         private readonly IUserService _userService;
-        public AdminController(IUserService userService)
+        private readonly IPostService _postService;
+        public AdminController(IUserService userService, IPostService postService)
         {
             _userService = userService;
+            _postService = postService;
         }
 
-        private UserResponseDto MapToDto(User user)
+        private UserResponseDto MapToDto(User user, int count)
         {
             return new UserResponseDto
             {
@@ -28,7 +30,8 @@ namespace MiniX.Backend.Controllers
                 ProfileImageUrl = user.ProfileImageUrl,
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                PostsCount = count
             };
         }
 
@@ -40,8 +43,25 @@ namespace MiniX.Backend.Controllers
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
             var users = await _userService.GetUsersAsync(page, pageSize);
-            var response = users.Select(MapToDto).ToList();
+
+            List<UserResponseDto> response = [];
+            foreach (var user in users)
+            {
+                var x = await _postService.GetUserPostsCountAsync(user.Id);
+                response.Add(MapToDto(user, x));
+            }
             return Ok(response);
+        }
+
+        [HttpPost("password")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ChangeUserPasswordByUsername([FromBody] PasswordResetDto dto )
+        {
+            if (dto.id == "") return BadRequest(new { message = "No esta definido el usuario, ¿Habra un bug en la pagina?" });
+            if (dto.newpass == "" || dto.newpass.Length<8) return BadRequest(new { message = "No se ingreso una contraseña valida" });
+
+            var ret = await _userService.PasswordResetAsync(dto.id, dto.newpass);
+            return Ok(ret);
         }
     }
 }
