@@ -132,6 +132,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseCors("MinixPolicy");
 app.UseRateLimiter();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
