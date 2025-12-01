@@ -1,7 +1,4 @@
-﻿using Amazon.Runtime.Internal;
-using System.Text.Json;
-
-namespace MiniX.Backend
+﻿namespace MiniX.Backend
 {
     public class ExceptionHandlingMiddleware
     {
