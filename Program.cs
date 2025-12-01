@@ -132,13 +132,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseRouting();
+app.UseHttpsRedirection();
+
 app.UseCors("MinixPolicy");
-app.UseRateLimiter();
-app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseRateLimiter();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.MapControllers();
 
