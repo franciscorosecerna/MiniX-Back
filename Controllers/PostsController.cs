@@ -17,6 +17,7 @@ namespace MiniX.Backend.Controllers
     {
         private readonly IPostService _postService;
         private readonly IUserService _userService;
+        private readonly IImageService _imageService;
         private readonly ILogger<PostsController> _logger;
 
         /// <summary>
@@ -24,11 +25,12 @@ namespace MiniX.Backend.Controllers
         /// </summary>
         /// <param name="postService">The post service for business logic operations</param>
         /// <param name="logger">The logger for logging activities</param>
-        public PostsController(IPostService postService, ILogger<PostsController> logger, IUserService userService)
+        public PostsController(IPostService postService, ILogger<PostsController> logger, IUserService userService, IImageService imageService)
         {
             _postService = postService;
             _logger = logger;
             _userService = userService;
+            _imageService = imageService;
         }
 
         private string GetCurrentUserId()
@@ -240,22 +242,31 @@ namespace MiniX.Backend.Controllers
         [ProducesResponseType(typeof(PostResponseDto), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
-        public async Task<IActionResult> Create([FromBody] CreatePostDto dto)
+        public async Task<IActionResult> Create([FromForm] CreatePostDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             string authorId = GetCurrentUserId();
 
+            var user = await _userService.GetUserByIdAsync(authorId);
+            if (user == null)
+                return Unauthorized();
+
+            string? imageUrl = null;
+
+            if (dto.Image != null)
+                imageUrl = await _imageService.UploadImageAsync(dto.Image);
+
             var post = await _postService.CreatePostAsync(
                 authorId,
                 dto.Content,
-                dto.ImageUrl,
+                imageUrl,
                 dto.ParentPostId
             );
-            var user = await _userService.GetUserByIdAsync(authorId);
 
-            var response = PostResponseDto.FromPost(post, user!);
+            var response = PostResponseDto.FromPost(post, user);
+
             return CreatedAtAction(nameof(GetById), new { id = post.Id }, response);
         }
 
@@ -277,21 +288,50 @@ namespace MiniX.Backend.Controllers
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Update(string id, [FromBody] UpdatePostDto dto)
+        public async Task<IActionResult> Update(string id, [FromForm] UpdatePostDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            string authorId = GetCurrentUserId();
+            string userId = GetCurrentUserId();
 
-            var isLiked = await _postService.LikeExistsAsync(id, authorId);
-            var updated = await _postService.UpdatePostAsync(id, authorId, dto.Content, dto.ImageUrl);
+            var existing = await _postService.GetPostByIdAsync(id);
+            if (existing == null)
+                return NotFound(new { message = "Post no encontrado" });
+
+            if (existing.AuthorId != userId)
+                return Forbid();
+
+            string? newImageUrl = existing.ImageUrl;
+
+            if (dto.Image != null)
+            {
+                newImageUrl = await _imageService.UploadImageAsync(dto.Image);
+
+                if (!string.IsNullOrEmpty(existing.ImageUrl))
+                    await _imageService.DeleteImageAsync(existing.ImageUrl);
+            }
+            else if (dto.ImageUrl == null && existing.ImageUrl != null)
+            {
+                await _imageService.DeleteImageAsync(existing.ImageUrl);
+                newImageUrl = null;
+            }
+
+            var updated = await _postService.UpdatePostAsync(
+                id,
+                userId,
+                dto.Content,
+                newImageUrl
+            );
 
             if (updated == null)
                 return NotFound(new { message = "Post no encontrado" });
-            var user = await _userService.GetUserByIdAsync(authorId);
+
+            var isLiked = await _postService.LikeExistsAsync(id, userId);
+            var user = await _userService.GetUserByIdAsync(userId);
 
             var response = PostResponseDto.FromPost(updated, user!, isLiked);
+
             return Ok(response);
         }
 
