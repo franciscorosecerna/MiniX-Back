@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MiniX.Backend.DTOs;
 using MiniX.Backend.Models;
 using MiniX.Backend.Repositories;
 using MongoDB.Driver;
@@ -11,7 +12,7 @@ namespace MiniX.Backend.Services
         Task<User?> GetUserByUsernameAsync(string username);
         Task<User?> GetUserByEmailAsync(string email);
         Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20);
-        Task<bool> UpdateUserAsync(string id, User user);
+        Task<bool> UpdateUserAsync(string id, UpdateUserRequest update);
         Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword);
         Task<bool> PasswordResetAsync(string id, string newPlainPassword);
         Task<bool> DeleteUserAsync(string id);
@@ -32,11 +33,15 @@ namespace MiniX.Backend.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IFollowRepository _followRepository;
+        private readonly IImageService _imageService;
 
-        public UserService(IUserRepository userRepository, IFollowRepository followRepository)
+        public UserService(IUserRepository userRepository, 
+            IFollowRepository followRepository, 
+            IImageService imageService)
         {
             _userRepository = userRepository;
             _followRepository = followRepository;
+            _imageService = imageService;
         }
 
         private static string NormalizeUsername(string username)
@@ -66,15 +71,18 @@ namespace MiniX.Backend.Services
             return await _userRepository.GetAllAsync(skip, limit);
         }
 
-        public async Task<bool> UpdateUserAsync(string id, User user)
+        public async Task<bool> UpdateUserAsync(string id, UpdateUserRequest user)
         {
-            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("El ID no puede estar vacío", nameof(id));
-            if (user == null) throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("El ID no puede estar vacío", nameof(id));
 
-            var existing = await _userRepository.GetByIdAsync(id);
-            if (existing == null) throw new InvalidOperationException($"Usuario con ID '{id}' no encontrado");
+            ArgumentNullException.ThrowIfNull(user);
+
+            var existing = await _userRepository.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"Usuario con ID '{id}' no encontrado");
 
             var newUsername = NormalizeUsername(user.Username ?? existing.Username);
+
             if (!string.Equals(existing.Username, newUsername, StringComparison.OrdinalIgnoreCase))
             {
                 if (await _userRepository.UsernameExistsAsync(newUsername))
@@ -83,8 +91,24 @@ namespace MiniX.Backend.Services
 
             if (!string.Equals(existing.Email, user.Email, StringComparison.OrdinalIgnoreCase))
             {
-                if (await _userRepository.EmailExistsAsync(user.Email))
+                if (await _userRepository.EmailExistsAsync(user.Email!))
                     throw new InvalidOperationException($"El email '{user.Email}' ya está registrado");
+            }
+
+            string? finalImageUrl = existing.ProfileImageUrl;
+
+            if (user.ProfileImage != null)
+            {
+                finalImageUrl = await _imageService.UploadImageAsync(user.ProfileImage);
+
+                if (!string.IsNullOrEmpty(existing.ProfileImageUrl))
+                {
+                    try
+                    {
+                        await _imageService.DeleteImageAsync(existing.ProfileImageUrl);
+                    }
+                    finally { }
+                }
             }
 
             var updates = new List<UpdateDefinition<User>>();
@@ -99,8 +123,8 @@ namespace MiniX.Backend.Services
             if (!string.IsNullOrWhiteSpace(user.Bio) && user.Bio != existing.Bio)
                 updates.Add(builder.Set(u => u.Bio, user.Bio));
 
-            if (!string.IsNullOrWhiteSpace(user.ProfileImageUrl) && user.ProfileImageUrl != existing.ProfileImageUrl)
-                updates.Add(builder.Set(u => u.ProfileImageUrl, user.ProfileImageUrl));
+            if (!string.IsNullOrEmpty(finalImageUrl) && finalImageUrl != existing.ProfileImageUrl)
+                updates.Add(builder.Set(u => u.ProfileImageUrl, finalImageUrl));
 
             if (!string.IsNullOrWhiteSpace(user.Email) && !string.Equals(user.Email, existing.Email, StringComparison.OrdinalIgnoreCase))
                 updates.Add(builder.Set(u => u.Email, user.Email));
@@ -109,8 +133,10 @@ namespace MiniX.Backend.Services
                 return false;
 
             var combined = builder.Combine(updates);
+
             return await _userRepository.UpdateAsync(id, combined);
         }
+
 
         public async Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword)
         {
@@ -118,9 +144,8 @@ namespace MiniX.Backend.Services
             if (string.IsNullOrWhiteSpace(currentPlainPassword)) throw new ArgumentException(null, nameof(currentPlainPassword));
             if (string.IsNullOrWhiteSpace(newPlainPassword)) throw new ArgumentException(null, nameof(newPlainPassword));
 
-            var user = await _userRepository.GetByIdAsync(id);
-            if (user == null) throw new InvalidOperationException("Usuario no encontrado");
-
+            var user = await _userRepository.GetByIdAsync(id) 
+                ?? throw new InvalidOperationException("Usuario no encontrado");
             if (!BCrypt.Net.BCrypt.Verify(currentPlainPassword, user.PasswordHash))
                 throw new UnauthorizedAccessException("Password actual incorrecto");
 
