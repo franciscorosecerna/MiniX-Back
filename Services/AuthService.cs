@@ -217,7 +217,8 @@ namespace MiniX.Backend.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id!),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim("username", user.Username),
                 new Claim("displayName", user.DisplayName),
                 new Claim(ClaimTypes.Role, user.Role)

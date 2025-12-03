@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using MiniX.Backend.DTOs;
 using MiniX.Backend.Models;
 using MiniX.Backend.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace MiniX.Backend.Controllers
@@ -36,6 +37,8 @@ namespace MiniX.Backend.Controllers
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? User.FindFirstValue("sub")
                 ?? string.Empty;
         }
 
