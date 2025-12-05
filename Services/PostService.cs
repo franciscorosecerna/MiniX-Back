@@ -1,4 +1,5 @@
-﻿using MiniX.Backend.Models;
+﻿using MiniX.Backend.Controllers;
+using MiniX.Backend.Models;
 using MiniX.Backend.Repositories;
 using MongoDB.Driver;
 using System.Text.RegularExpressions;
@@ -25,11 +26,13 @@ namespace MiniX.Backend.Services
     {
         private readonly IPostRepository _postRepository;
         private readonly ILikeRepository _likeRepository;
+        private readonly ILogger<PostService> _logger;
 
-        public PostService(IPostRepository postRepository, ILikeRepository likeRepository)
+        public PostService(IPostRepository postRepository, ILikeRepository likeRepository, ILogger<PostService> logger)
         {
             _postRepository = postRepository;
             _likeRepository = likeRepository;
+            _logger = logger;
         }
 
         public async Task<Post> CreatePostAsync(string authorId, string content, string? imageUrl = null, string? parentPostId = null)
@@ -159,7 +162,7 @@ namespace MiniX.Backend.Services
                 ?? throw new ArgumentException("El post no existe");
 
             var exist = await LikeExistsAsync(postId, userId);
-            if (!exist)
+            if (exist)
             {
                 return false;
             }

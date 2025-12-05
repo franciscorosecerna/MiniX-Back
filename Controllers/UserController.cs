@@ -12,7 +12,6 @@ namespace MiniX.Backend.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-
         public UserController(IUserService userService)
         {
             _userService = userService;
@@ -75,23 +74,14 @@ namespace MiniX.Backend.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)
+        public async Task<IActionResult> UpdateUser(string id, [FromForm] UpdateUserRequest request)
         {
             var currentUserId = GetCurrentUserId();
             if (currentUserId != id && !User.IsInRole("Admin"))
                 return Forbid();
 
-            var user = new User
-            {
-                Id = id,
-                Username = request.Username!,
-                DisplayName = request.DisplayName!,
-                Bio = request.Bio,
-                Email = request.Email!,
-                ProfileImageUrl = request.ProfileImageUrl
-            };
+            var result = await _userService.UpdateUserAsync(id, request);
 
-            var result = await _userService.UpdateUserAsync(id, user);
             if (!result)
                 return BadRequest(new { message = "No se realizaron cambios" });
 

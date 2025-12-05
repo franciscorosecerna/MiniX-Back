@@ -1,3 +1,4 @@
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -60,6 +61,14 @@ builder.Services.AddScoped<IMongoDatabase>(sp =>
 });
 
 // --- Repos & Services ---
+var cloudinarySettings = builder.Configuration.GetSection("Cloudinary");
+var account = new Account(
+    cloudinarySettings["CloudName"],
+    cloudinarySettings["ApiKey"],
+    cloudinarySettings["ApiSecret"]
+);
+
+builder.Services.AddSingleton(new Cloudinary(account));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IFollowRepository, FollowRepository>();
 builder.Services.AddScoped<ILikeRepository, LikeRepository>();
@@ -67,6 +76,7 @@ builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IImageService, ImageService>();
 
 // --- Auth ---
 builder.Services
@@ -93,6 +103,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    c.MapType<IFormFile>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Format = "binary"
+    });
+
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "MiniX API",
