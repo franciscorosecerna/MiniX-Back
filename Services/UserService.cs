@@ -35,8 +35,8 @@ namespace MiniX.Backend.Services
         private readonly IFollowRepository _followRepository;
         private readonly IImageService _imageService;
 
-        public UserService(IUserRepository userRepository, 
-            IFollowRepository followRepository, 
+        public UserService(IUserRepository userRepository,
+            IFollowRepository followRepository,
             IImageService imageService)
         {
             _userRepository = userRepository;
@@ -96,6 +96,7 @@ namespace MiniX.Backend.Services
             }
 
             string? finalImageUrl = existing.ProfileImageUrl;
+            Console.Write(finalImageUrl);
 
             if (user.ProfileImage != null)
             {
@@ -125,7 +126,7 @@ namespace MiniX.Backend.Services
 
             if (finalImageUrl != existing.ProfileImageUrl){
                 updates.Add(builder.Set(u => u.ProfileImageUrl, finalImageUrl));
-            } else if (user.ProfileImage == null && finalImageUrl == ""){
+            } else if (user.ProfileImage == null && user.ProfileImageUrl == null){
                 updates.Add(builder.Set(u => u.ProfileImageUrl, null));
             }
 
@@ -148,7 +149,7 @@ namespace MiniX.Backend.Services
             if (string.IsNullOrWhiteSpace(currentPlainPassword)) throw new ArgumentException(null, nameof(currentPlainPassword));
             if (string.IsNullOrWhiteSpace(newPlainPassword)) throw new ArgumentException(null, nameof(newPlainPassword));
 
-            var user = await _userRepository.GetByIdAsync(id) 
+            var user = await _userRepository.GetByIdAsync(id)
                 ?? throw new InvalidOperationException("Usuario no encontrado");
             if (!BCrypt.Net.BCrypt.Verify(currentPlainPassword, user.PasswordHash))
                 throw new UnauthorizedAccessException("Password actual incorrecto");
