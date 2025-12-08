@@ -123,8 +123,12 @@ namespace MiniX.Backend.Services
             if (!string.IsNullOrWhiteSpace(user.Bio) && user.Bio != existing.Bio)
                 updates.Add(builder.Set(u => u.Bio, user.Bio));
 
-            if (finalImageUrl != existing.ProfileImageUrl)
+            if (finalImageUrl != existing.ProfileImageUrl){
                 updates.Add(builder.Set(u => u.ProfileImageUrl, finalImageUrl));
+            } else if (user.ProfileImage == null && finalImageUrl == ""){
+                updates.Add(builder.Set(u => u.ProfileImageUrl, null));
+            }
+
 
             if (!string.IsNullOrWhiteSpace(user.Email) && !string.Equals(user.Email, existing.Email, StringComparison.OrdinalIgnoreCase))
                 updates.Add(builder.Set(u => u.Email, user.Email));
