@@ -29,6 +29,7 @@ namespace MiniX.Backend.Controllers
                 DisplayName = user.DisplayName,
                 Email = user.Email,
                 Bio = user.Bio,
+                ImageUrl = user.ProfileImageUrl,
                 ProfileImageUrl = user.ProfileImageUrl,
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount,
