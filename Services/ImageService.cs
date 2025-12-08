@@ -24,6 +24,9 @@ namespace MiniX.Backend.Services
 
             using (var stream = file.OpenReadStream())
             {
+                // esto es por las dudas que el stream no se inicialize en 0
+                stream.Position = 0;
+
                 var uploadParams = new ImageUploadParams
                 {
                     File = new FileDescription(file.FileName, stream),
