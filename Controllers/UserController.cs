@@ -161,7 +161,7 @@ namespace MiniX.Backend.Controllers
                 return Unauthorized();
 
             var result = await _userService.UnfollowUserAsync(currentUserId, id);
-            return NoContent();
+            return Ok(result);
         }
 
         [HttpGet("{id}/is-following")]
@@ -179,6 +179,10 @@ namespace MiniX.Backend.Controllers
         [HttpGet("{id}/followers")]
         public async Task<IActionResult> GetFollowers(string id, [FromQuery] int skip = 0, [FromQuery] int limit = 20)
         {
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
             var totalCount = await _userService.GetFollowersCountAsync(id);
             var followers = await _userService.GetFollowersAsync(id, skip, limit);
             var response = followers.Select(MapToDto).ToList();
@@ -188,6 +192,10 @@ namespace MiniX.Backend.Controllers
         [HttpGet("{id}/following")]
         public async Task<IActionResult> GetFollowing(string id, [FromQuery] int skip = 0, [FromQuery] int limit = 20)
         {
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
             var totalCount = await _userService.GetFollowingCountAsync(id);
             var following = await _userService.GetFollowingAsync(id, skip, limit);
             var response = following.Select(MapToDto).ToList();
@@ -197,6 +205,10 @@ namespace MiniX.Backend.Controllers
         [HttpGet("{id}/followers/count")]
         public async Task<IActionResult> GetFollowersCount(string id)
         {
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
             var count = await _userService.GetFollowersCountAsync(id);
             return Ok(new { count });
         }
@@ -204,6 +216,10 @@ namespace MiniX.Backend.Controllers
         [HttpGet("{id}/following/count")]
         public async Task<IActionResult> GetFollowingCount(string id)
         {
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
             var count = await _userService.GetFollowingCountAsync(id);
             return Ok(new { count });
         }
