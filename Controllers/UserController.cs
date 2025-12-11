@@ -179,17 +179,19 @@ namespace MiniX.Backend.Controllers
         [HttpGet("{id}/followers")]
         public async Task<IActionResult> GetFollowers(string id, [FromQuery] int skip = 0, [FromQuery] int limit = 20)
         {
+            var totalCount = await _userService.GetFollowersCountAsync(id);
             var followers = await _userService.GetFollowersAsync(id, skip, limit);
             var response = followers.Select(MapToDto).ToList();
-            return Ok(response);
+            return Ok(new { response, totalCount });
         }
 
         [HttpGet("{id}/following")]
         public async Task<IActionResult> GetFollowing(string id, [FromQuery] int skip = 0, [FromQuery] int limit = 20)
         {
+            var totalCount = await _userService.GetFollowingCountAsync(id);
             var following = await _userService.GetFollowingAsync(id, skip, limit);
             var response = following.Select(MapToDto).ToList();
-            return Ok(response);
+            return Ok(new { response ,totalCount });
         }
 
         [HttpGet("{id}/followers/count")]

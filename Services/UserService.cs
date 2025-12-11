@@ -142,7 +142,6 @@ namespace MiniX.Backend.Services
             return await _userRepository.UpdateAsync(id, combined);
         }
 
-
         public async Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException(null, nameof(id));
