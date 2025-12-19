@@ -204,7 +204,7 @@ namespace MiniX.Backend.Repositories
                 Builders<User>.Filter.Eq(u => u.Id, userId),
                 Builders<User>.Filter.ElemMatch(
                     u => u.RefreshTokens,
-                    rt => rt.Expires < DateTime.UtcNow && rt.RevokedAt == null
+                    rt => rt.Expires < DateTime.UtcNow
                 )
             );
 
