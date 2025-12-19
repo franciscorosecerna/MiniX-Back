@@ -24,6 +24,7 @@ namespace MiniX.Backend.Repositories
         Task<bool> RevokeRefreshTokenAsync(string userId, string token);
         Task<bool> ReplaceRefreshTokensAsync(string userId, List<RefreshToken> tokens);
         Task<User?> GetByRefreshTokenAsync(string refreshToken);
+        Task RemoveExpiredRefreshTokensAsync(string userId);
     }
 
     public class UserRepository : IUserRepository
@@ -194,6 +195,24 @@ namespace MiniX.Backend.Repositories
             );
 
             return await _users.Find(filter).FirstOrDefaultAsync();
+        }
+
+        public async Task RemoveExpiredRefreshTokensAsync(string userId)
+        {
+            var filter = Builders<User>.Filter.And(
+                Builders<User>.Filter.Eq(u => u.Id, userId),
+                Builders<User>.Filter.ElemMatch(
+                    u => u.RefreshTokens,
+                    rt => rt.Expires < DateTime.UtcNow && rt.RevokedAt == null
+                )
+            );
+
+            var update = Builders<User>.Update.PullFilter(
+                u => u.RefreshTokens,
+                rt => rt.Expires < DateTime.UtcNow
+            );
+
+            await _users.UpdateOneAsync(filter, update);
         }
     }
 }
