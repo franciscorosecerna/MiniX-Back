@@ -8,13 +8,13 @@ namespace MiniX.Backend.Services
 {
     public interface IPostService
     {
-        Task<Post> CreatePostAsync(string authorId, string content, string? imageUrl = null, string? parentPostId = null);
+        Task<Post> CreatePostAsync(string authorId, string content, string? imageUrl = null, string? imageId = null, string? parentPostId = null);
         Task<Post?> GetPostByIdAsync(string id);
         Task<List<Post>> GetUserPostsAsync(string authorId, int page = 1, int pageSize = 20);
         Task<List<Post>> GetPostRepliesAsync(string postId, int page = 1, int pageSize = 20);
         Task<List<Post>> GetTimelineAsync(int page = 1, int pageSize = 20);
         Task<List<Post>> GetPostsByHashtagAsync(string hashtag, int page = 1, int pageSize = 20);
-        Task<Post?> UpdatePostAsync(string id, string authorId, string content, string? imageUrl = null);
+        Task<Post?> UpdatePostAsync(string id, string authorId, string content, string? imageUrl = null, string? imageId = null);
         Task<bool> DeletePostAsync(string id, string authorId);
         Task<bool> LikePostAsync(string postId, string userId);
         Task<bool> LikeExistsAsync(string postId, string userId);
@@ -35,7 +35,7 @@ namespace MiniX.Backend.Services
             _logger = logger;
         }
 
-        public async Task<Post> CreatePostAsync(string authorId, string content, string? imageUrl = null, string? parentPostId = null)
+        public async Task<Post> CreatePostAsync(string authorId, string content, string? imageUrl = null, string? imageId = null, string? parentPostId = null)
         {
             if (string.IsNullOrWhiteSpace(content) && string.IsNullOrWhiteSpace(imageUrl))
             {
@@ -55,6 +55,7 @@ namespace MiniX.Backend.Services
                 AuthorId = authorId,
                 Content = content ?? string.Empty,
                 ImageUrl = imageUrl,
+                ImageId = imageId,
                 ParentPostId = parentPostId,
                 Hashtags = hashtags.Count != 0 ? hashtags : null,
                 CreatedAt = DateTime.UtcNow
@@ -99,7 +100,7 @@ namespace MiniX.Backend.Services
             return await _postRepository.GetByHashtagAsync(hashtag, skip, pageSize);
         }
 
-        public async Task<Post?> UpdatePostAsync(string id, string authorId, string content, string? imageUrl = null)
+        public async Task<Post?> UpdatePostAsync(string id, string authorId, string content, string? imageUrl = null, string? imageId = null)
         {
             if (string.IsNullOrWhiteSpace(content) && string.IsNullOrWhiteSpace(imageUrl))
             {
@@ -125,6 +126,7 @@ namespace MiniX.Backend.Services
 
             existingPost.Content = content ?? string.Empty;
             existingPost.ImageUrl = imageUrl;
+            existingPost.ImageId = imageId;
             existingPost.Hashtags = ExtractHashtags(content);
             existingPost.UpdatedAt = DateTime.UtcNow;
             existingPost.IsEdited = true;

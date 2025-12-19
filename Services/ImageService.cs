@@ -1,30 +1,34 @@
 ﻿using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using MiniX.Backend.Repositories;
 
 namespace MiniX.Backend.Services
 {
     public interface IImageService
     {
-        public Task<string> UploadImageAsync(IFormFile file);
-        public Task<bool> DeleteImageAsync(string imageUrl);
+        public Task<(string url, string id)> UploadImageAsync(IFormFile file);
+        public Task<bool> DeleteImageAsync(string Url);
     }
 
     public class ImageService: IImageService
     {
         private readonly Cloudinary _cloudinary;
+        private readonly IUserRepository _userRepository;
+        private readonly IPostRepository _postRepository;
 
-        public ImageService(Cloudinary cloudinary)
+        public ImageService(Cloudinary cloudinary, IUserRepository user, IPostRepository postRepository)
         {
+            _userRepository = user;
             _cloudinary = cloudinary;
+            _postRepository = postRepository;
         }
 
-        public async Task<string> UploadImageAsync(IFormFile file)
+        public async Task<(string url, string id)> UploadImageAsync(IFormFile file)
         {
             var uploadResult = new ImageUploadResult();
 
             using (var stream = file.OpenReadStream())
             {
-                // esto es por las dudas que el stream no se inicialize en 0
                 stream.Position = 0;
 
                 var uploadParams = new ImageUploadParams
@@ -43,7 +47,7 @@ namespace MiniX.Backend.Services
                 uploadResult = await _cloudinary.UploadAsync(uploadParams);
             }
 
-            return uploadResult.SecureUrl.ToString();
+            return (url: uploadResult.SecureUrl.ToString(), id: uploadResult.PublicId.ToString());
         }
 
         public async Task<bool> DeleteImageAsync(string imageUrl)
@@ -51,41 +55,19 @@ namespace MiniX.Backend.Services
             if (string.IsNullOrWhiteSpace(imageUrl))
                 return false;
 
-            string? publicId = ExtractPublicId(imageUrl);
+            var publicId = await _userRepository.GetImagePublicIdByUrlAsync(imageUrl);
 
-            if (publicId == null)
-                return false;
-
-            var deletionParams = new DeletionParams(publicId);
-
-            var result = await _cloudinary.DestroyAsync(deletionParams);
-
-            return result.Result == "ok" || result.Result == "not found";
-        }
-
-        private static string? ExtractPublicId(string imageUrl)
-        {
-            try
+            if (string.IsNullOrWhiteSpace(publicId))
             {
-                var uri = new Uri(imageUrl);
+                publicId = await _postRepository.GetImagePublicIdByUrlAsync(imageUrl);
 
-                var path = uri.AbsolutePath;
-
-                var parts = path.Split("/image/upload/");
-
-                if (parts.Length < 2)
-                    return null;
-
-                var publicPart = parts[1];
-
-                var withoutExtension = publicPart[..publicPart.LastIndexOf('.')
-                ];
-                return withoutExtension;
+                if (string.IsNullOrWhiteSpace(publicId))
+                    return false;
             }
-            catch
-            {
-                return null;
-            }
+
+            var result = await _cloudinary.DestroyAsync(new DeletionParams(publicId));
+
+            return result.Result == "ok";
         }
     }
 }

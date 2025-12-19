@@ -19,6 +19,9 @@ namespace MiniX.Backend.Models
         [BsonElement("imageUrl")]
         public string? ImageUrl { get; set; }
 
+        [BsonElement("ImageId")]
+        public string? ImageId { get; set; } = "";
+
         [BsonRepresentation(BsonType.ObjectId)]
         [BsonElement("parentPostId")]
         public string? ParentPostId { get; set; }

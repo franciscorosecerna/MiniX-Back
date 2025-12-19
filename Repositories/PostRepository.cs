@@ -17,6 +17,7 @@ namespace MiniX.Backend.Repositories
         Task<bool> IncrementRepliesCountAsync(string id, int increment = 1);
         Task<long> GetCountByAuthorAsync(string authorId);
         Task CreateIndexesAsync();
+        Task<string?> GetImagePublicIdByUrlAsync(string imageUrl);
     }
 
     public class PostRepository : IPostRepository
@@ -151,5 +152,13 @@ namespace MiniX.Backend.Repositories
 
         public async Task<long> GetCountByAuthorAsync(string authorId)
             => await _posts.CountDocumentsAsync(p => p.AuthorId == authorId);
+
+        public async Task<string?> GetImagePublicIdByUrlAsync(string imageUrl)
+        {
+            return await _posts
+                .Find(u => u.ImageUrl == imageUrl)
+                .Project(u => u.ImageId)
+                .FirstOrDefaultAsync();
+        }
     }
 }

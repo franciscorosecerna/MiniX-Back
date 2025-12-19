@@ -95,12 +95,11 @@ namespace MiniX.Backend.Services
                     throw new InvalidOperationException($"El email '{user.Email}' ya está registrado");
             }
 
-            string? finalImageUrl = existing.ProfileImageUrl;
-            Console.Write(finalImageUrl);
+            (string? url, string? id) img = new (existing.ProfileImageUrl, existing.ProfileImageId);
 
             if (user.ProfileImage != null)
             {
-                finalImageUrl = await _imageService.UploadImageAsync(user.ProfileImage);
+                img = await _imageService.UploadImageAsync(user.ProfileImage);
 
                 if (!string.IsNullOrEmpty(existing.ProfileImageUrl))
                 {
@@ -124,8 +123,8 @@ namespace MiniX.Backend.Services
             if (!string.IsNullOrWhiteSpace(user.Bio) && user.Bio != existing.Bio)
                 updates.Add(builder.Set(u => u.Bio, user.Bio));
 
-            if (finalImageUrl != existing.ProfileImageUrl){
-                updates.Add(builder.Set(u => u.ProfileImageUrl, finalImageUrl));
+            if (img.url != existing.ProfileImageUrl){
+                updates.Add(builder.Set(u => u.ProfileImageUrl, img.url));
             } else if (user.ProfileImage == null && user.ProfileImageUrl == null){
                 updates.Add(builder.Set(u => u.ProfileImageUrl, null));
             }

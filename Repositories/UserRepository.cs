@@ -25,6 +25,7 @@ namespace MiniX.Backend.Repositories
         Task<bool> ReplaceRefreshTokensAsync(string userId, List<RefreshToken> tokens);
         Task<User?> GetByRefreshTokenAsync(string refreshToken);
         Task RemoveExpiredRefreshTokensAsync(string userId);
+        Task<string?> GetImagePublicIdByUrlAsync(string imageUrl);
     }
 
     public class UserRepository : IUserRepository
@@ -213,6 +214,14 @@ namespace MiniX.Backend.Repositories
             );
 
             await _users.UpdateOneAsync(filter, update);
+        }
+
+        public async Task<string?> GetImagePublicIdByUrlAsync(string imageUrl)
+        {
+            return await _users
+                .Find(u => u.ProfileImageUrl == imageUrl)
+                .Project(u => u.ProfileImageId)
+                .FirstOrDefaultAsync();
         }
     }
 }

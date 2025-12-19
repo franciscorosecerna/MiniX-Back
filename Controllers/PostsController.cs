@@ -256,17 +256,18 @@ namespace MiniX.Backend.Controllers
             if (user == null)
                 return Unauthorized();
 
-            string? imageUrl = null;
+            (string? url, string? id) img = new (null, null);
 
             if (dto.Image != null){
                 if (dto.Image.Length > 10000000) return BadRequest(new { message = "La imagen no puede ser mayor a 10MB" });
-                imageUrl = await _imageService.UploadImageAsync(dto.Image);
+                img = await _imageService.UploadImageAsync(dto.Image);
             }
 
             var post = await _postService.CreatePostAsync(
                 authorId,
                 dto.Content,
-                imageUrl,
+                img.url,
+                img.id,
                 dto.ParentPostId
             );
 
@@ -307,11 +308,11 @@ namespace MiniX.Backend.Controllers
             if (existing.AuthorId != userId)
                 return Forbid();
 
-            string? newImageUrl = existing.ImageUrl;
+            (string? url, string? id) newImage = new(null, null);
 
             if (dto.Image != null)
             {
-                newImageUrl = await _imageService.UploadImageAsync(dto.Image);
+                newImage = await _imageService.UploadImageAsync(dto.Image);
 
                 if (!string.IsNullOrEmpty(existing.ImageUrl))
                     await _imageService.DeleteImageAsync(existing.ImageUrl);
@@ -319,14 +320,16 @@ namespace MiniX.Backend.Controllers
             else if (dto.ImageUrl == null && existing.ImageUrl != null)
             {
                 await _imageService.DeleteImageAsync(existing.ImageUrl);
-                newImageUrl = null;
+                newImage.url = null;
+                newImage.id = null;
             }
 
             var updated = await _postService.UpdatePostAsync(
                 id,
                 userId,
                 dto.Content,
-                newImageUrl
+                newImage.url,
+                newImage.id
             );
 
             if (updated == null)
