@@ -229,7 +229,7 @@ namespace MiniX.Backend.Controllers
                 else response.Add(PostResponseDto.FromPost(post, user, isLiked));
             }
 
-            return Ok(response);
+            return Ok(new { response, response.Count });
         }
 
         /// <summary>
