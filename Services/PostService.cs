@@ -20,6 +20,7 @@ namespace MiniX.Backend.Services
         Task<bool> LikeExistsAsync(string postId, string userId);
         Task<bool> UnlikePostAsync(string postId, string userId);
         Task<int> GetUserPostsCountAsync(string authorId);
+        Task<int> CountHtag(string tag);
     }
 
     public class PostService : IPostService
@@ -33,6 +34,10 @@ namespace MiniX.Backend.Services
             _postRepository = postRepository;
             _likeRepository = likeRepository;
             _logger = logger;
+        }
+
+        public async Task<int> CountHtag(string tag) {
+            return await _postRepository.CountHtag(tag);
         }
 
         public async Task<Post> CreatePostAsync(string authorId, string content, string? imageUrl = null, string? imageId = null, string? parentPostId = null)
@@ -160,7 +165,7 @@ namespace MiniX.Backend.Services
 
         public async Task<bool> LikePostAsync(string postId, string userId)
         {
-            _ = await _postRepository.GetByIdAsync(postId) 
+            _ = await _postRepository.GetByIdAsync(postId)
                 ?? throw new ArgumentException("El post no existe");
 
             var exist = await LikeExistsAsync(postId, userId);
