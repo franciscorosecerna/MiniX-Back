@@ -67,12 +67,6 @@ namespace MiniX.Backend.Services
                 RefreshTokens = []
             };
 
-            //Admin
-            if(user.Username == "fedpo")
-            {
-                user.Role = "Admin";
-            }
-
             await _users.CreateAsync(user);
 
             _logger.LogInformation("Usuario registrado: {Username}", username);
@@ -103,7 +97,6 @@ namespace MiniX.Backend.Services
                 isAdmin = true;
             }
 
-            //Admin (change not persisted)
             if (user.Username == "fedpo")
             {
                 user.Role = "Admin";
@@ -112,11 +105,11 @@ namespace MiniX.Backend.Services
             var accessToken = GenerateJwtToken(user);
             var refreshToken = CreateRefreshToken();
 
-            await _users.AddRefreshTokenAsync(user.Id!, refreshToken);
+            await _users.RemoveExpiredRefreshTokensAsync(user.Id);
+            await _users.AddRefreshTokenAsync(user.Id, refreshToken);
 
             return (true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.Username, user.ProfileImageUrl, isAdmin, "Login exitoso.");
         }
-
 
         public async Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)>
             RefreshAsync(string refreshToken)

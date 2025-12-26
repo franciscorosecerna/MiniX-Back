@@ -17,6 +17,8 @@ namespace MiniX.Backend.Repositories
         Task<bool> IncrementRepliesCountAsync(string id, int increment = 1);
         Task<long> GetCountByAuthorAsync(string authorId);
         Task CreateIndexesAsync();
+        Task<string?> GetImagePublicIdByUrlAsync(string imageUrl);
+        Task<int> CountHtag(string tag);
     }
 
     public class PostRepository : IPostRepository
@@ -26,6 +28,12 @@ namespace MiniX.Backend.Repositories
         public PostRepository(IMongoDatabase database)
         {
             _posts = database.GetCollection<Post>("posts");
+        }
+
+        public async Task<int> CountHtag(string tag)
+        {
+            var filter = Builders<Post>.Filter.AnyEq(p => p.Hashtags, tag);
+            return (int)await _posts.CountDocumentsAsync(filter);
         }
 
         public async Task CreateIndexesAsync()
@@ -151,5 +159,13 @@ namespace MiniX.Backend.Repositories
 
         public async Task<long> GetCountByAuthorAsync(string authorId)
             => await _posts.CountDocumentsAsync(p => p.AuthorId == authorId);
+
+        public async Task<string?> GetImagePublicIdByUrlAsync(string imageUrl)
+        {
+            return await _posts
+                .Find(u => u.ImageUrl == imageUrl)
+                .Project(u => u.ImageId)
+                .FirstOrDefaultAsync();
+        }
     }
 }

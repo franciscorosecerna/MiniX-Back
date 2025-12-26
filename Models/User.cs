@@ -28,6 +28,9 @@ namespace MiniX.Backend.Models
         [BsonElement("profileImageUrl")]
         public string? ProfileImageUrl { get; set; }
 
+        [BsonElement("profileImageId")]
+        public string? ProfileImageId { get; set; } = "";
+
         [BsonElement("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

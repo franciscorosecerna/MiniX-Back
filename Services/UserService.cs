@@ -35,8 +35,8 @@ namespace MiniX.Backend.Services
         private readonly IFollowRepository _followRepository;
         private readonly IImageService _imageService;
 
-        public UserService(IUserRepository userRepository, 
-            IFollowRepository followRepository, 
+        public UserService(IUserRepository userRepository,
+            IFollowRepository followRepository,
             IImageService imageService)
         {
             _userRepository = userRepository;
@@ -95,11 +95,11 @@ namespace MiniX.Backend.Services
                     throw new InvalidOperationException($"El email '{user.Email}' ya está registrado");
             }
 
-            string? finalImageUrl = existing.ProfileImageUrl;
+            (string? url, string? id) img = new (existing.ProfileImageUrl, existing.ProfileImageId);
 
             if (user.ProfileImage != null)
             {
-                finalImageUrl = await _imageService.UploadImageAsync(user.ProfileImage);
+                img = await _imageService.UploadImageAsync(user.ProfileImage);
 
                 if (!string.IsNullOrEmpty(existing.ProfileImageUrl))
                 {
@@ -123,8 +123,12 @@ namespace MiniX.Backend.Services
             if (!string.IsNullOrWhiteSpace(user.Bio) && user.Bio != existing.Bio)
                 updates.Add(builder.Set(u => u.Bio, user.Bio));
 
-            if (finalImageUrl != existing.ProfileImageUrl)
-                updates.Add(builder.Set(u => u.ProfileImageUrl, finalImageUrl));
+            if (img.url != existing.ProfileImageUrl){
+                updates.Add(builder.Set(u => u.ProfileImageUrl, img.url));
+            } else if (user.ProfileImage == null && user.ProfileImageUrl == null){
+                updates.Add(builder.Set(u => u.ProfileImageUrl, null));
+            }
+
 
             if (!string.IsNullOrWhiteSpace(user.Email) && !string.Equals(user.Email, existing.Email, StringComparison.OrdinalIgnoreCase))
                 updates.Add(builder.Set(u => u.Email, user.Email));
@@ -137,14 +141,13 @@ namespace MiniX.Backend.Services
             return await _userRepository.UpdateAsync(id, combined);
         }
 
-
         public async Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException(null, nameof(id));
             if (string.IsNullOrWhiteSpace(currentPlainPassword)) throw new ArgumentException(null, nameof(currentPlainPassword));
             if (string.IsNullOrWhiteSpace(newPlainPassword)) throw new ArgumentException(null, nameof(newPlainPassword));
 
-            var user = await _userRepository.GetByIdAsync(id) 
+            var user = await _userRepository.GetByIdAsync(id)
                 ?? throw new InvalidOperationException("Usuario no encontrado");
             if (!BCrypt.Net.BCrypt.Verify(currentPlainPassword, user.PasswordHash))
                 throw new UnauthorizedAccessException("Password actual incorrecto");

@@ -55,7 +55,7 @@ namespace MiniX.Backend.Controllers
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetById(string id)
         {
-            var post = await _postService.GetPostByIdAsync(id);           
+            var post = await _postService.GetPostByIdAsync(id);
             if (post == null)
                 return NotFound(new { message = "Post no encontrado" });
 
@@ -94,7 +94,7 @@ namespace MiniX.Backend.Controllers
 
             var posts = await _postService.GetUserPostsAsync(user.Id, page, pageSize);
             var totalCount = await _postService.GetUserPostsCountAsync(user.Id);
- 
+
             AddPaginationHeaders(page, pageSize, totalCount);
 
             List<PostResponseDto> response = [];
@@ -229,7 +229,8 @@ namespace MiniX.Backend.Controllers
                 else response.Add(PostResponseDto.FromPost(post, user, isLiked));
             }
 
-            return Ok(response);
+            var count = await _postService.CountHtag(tag);
+            return Ok(new { response, Count = count });
         }
 
         /// <summary>
@@ -256,15 +257,18 @@ namespace MiniX.Backend.Controllers
             if (user == null)
                 return Unauthorized();
 
-            string? imageUrl = null;
+            (string? url, string? id) img = new (null, null);
 
-            if (dto.Image != null)
-                imageUrl = await _imageService.UploadImageAsync(dto.Image);
+            if (dto.Image != null){
+                if (dto.Image.Length > 10000000) return BadRequest(new { message = "La imagen no puede ser mayor a 10MB" });
+                img = await _imageService.UploadImageAsync(dto.Image);
+            }
 
             var post = await _postService.CreatePostAsync(
                 authorId,
                 dto.Content,
-                imageUrl,
+                img.url,
+                img.id,
                 dto.ParentPostId
             );
 
@@ -305,11 +309,11 @@ namespace MiniX.Backend.Controllers
             if (existing.AuthorId != userId)
                 return Forbid();
 
-            string? newImageUrl = existing.ImageUrl;
+            (string? url, string? id) newImage = new(null, null);
 
             if (dto.Image != null)
             {
-                newImageUrl = await _imageService.UploadImageAsync(dto.Image);
+                newImage = await _imageService.UploadImageAsync(dto.Image);
 
                 if (!string.IsNullOrEmpty(existing.ImageUrl))
                     await _imageService.DeleteImageAsync(existing.ImageUrl);
@@ -317,14 +321,16 @@ namespace MiniX.Backend.Controllers
             else if (dto.ImageUrl == null && existing.ImageUrl != null)
             {
                 await _imageService.DeleteImageAsync(existing.ImageUrl);
-                newImageUrl = null;
+                newImage.url = null;
+                newImage.id = null;
             }
 
             var updated = await _postService.UpdatePostAsync(
                 id,
                 userId,
                 dto.Content,
-                newImageUrl
+                newImage.url,
+                newImage.id
             );
 
             if (updated == null)
