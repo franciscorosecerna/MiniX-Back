@@ -32,7 +32,6 @@ Thumbs.db
 **/docker-compose.yml
 **/docker-compose.override.yml
 **/docker-compose.*.yml
-.dockerignore
 
 TestResults/
 coverage/
