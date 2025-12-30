@@ -31,7 +31,8 @@ namespace MiniX.Backend.Controllers
                 FollowersCount = user.FollowersCount,
                 FollowingCount = user.FollowingCount,
                 CreatedAt = user.CreatedAt,
-                PostsCount = count
+                PostsCount = count,
+                IsAdmin = user.Role == "Admin" ? true : false,
             };
         }
 
