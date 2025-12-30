@@ -112,10 +112,14 @@ namespace MiniX.Backend.Controllers
             if (currentUserId != id && !User.IsInRole("Admin"))
                 return Forbid();
 
-            var result = await _userService.DeleteUserAsync(id);
-            if (!result)
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user is null)
                 return NotFound(new { message = "Usuario no encontrado" });
 
+            if (user.Role == "Admin")
+                return BadRequest(new { message = "Git gud"});
+
+            _ = await _userService.DeleteUserAsync(id);
             return NoContent();
         }
 
