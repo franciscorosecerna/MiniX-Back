@@ -10,7 +10,10 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.WebHost.UseUrls(
+    "http://localhost:5000",
+    "http://localhost:5159"
+);
 // --- Controllers ---
 builder.Services.AddControllers();
 

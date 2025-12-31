@@ -30,7 +30,16 @@ namespace MiniX.Backend.Controllers
                 return BadRequest(new { message = "Datos inválidos o ausentes." });
 
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+
+                return BadRequest(new
+                {
+                    message = string.Join(" | ", errors)
+                });
+            }
 
             var result = await _authService.RegisterAsync(
                 dto.Username,
