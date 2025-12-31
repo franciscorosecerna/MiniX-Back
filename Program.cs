@@ -10,10 +10,7 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls(
-    "http://localhost:5000",
-    "http://localhost:5159"
-);
+
 // --- Controllers ---
 builder.Services.AddControllers();
 
@@ -35,7 +32,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddFixedWindowLimiter("fixed", opt =>
     {
         opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 5;
+        opt.PermitLimit = builder.Environment.IsDevelopment() ? 5 : 100;
     });
 });
 
@@ -149,16 +146,16 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
-
 app.UseCors("MinixPolicy");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseRateLimiter();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.MapControllers();
