@@ -21,6 +21,7 @@ namespace MiniX.Backend.Services
         Task<bool> UnlikePostAsync(string postId, string userId);
         Task<int> GetUserPostsCountAsync(string authorId);
         Task<int> CountHtag(string tag);
+        Task<String[]> SearchHashTags(string tag);
     }
 
     public class PostService : IPostService
@@ -34,6 +35,11 @@ namespace MiniX.Backend.Services
             _postRepository = postRepository;
             _likeRepository = likeRepository;
             _logger = logger;
+        }
+
+        public async Task<String[]> SearchHashTags(string tag){
+            if (String.IsNullOrWhiteSpace(tag)) throw new ArgumentException("No se puede buscar un hashtag vacio", nameof(tag));
+            return await _postRepository.SearchHashTags(tag);
         }
 
         public async Task<int> CountHtag(string tag) {
