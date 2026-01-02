@@ -19,6 +19,7 @@ namespace MiniX.Backend.Repositories
         Task CreateIndexesAsync();
         Task<string?> GetImagePublicIdByUrlAsync(string imageUrl);
         Task<int> CountHtag(string tag);
+        Task<string[]> SearchHashTags(string tag);
     }
 
     public class PostRepository : IPostRepository
@@ -28,6 +29,17 @@ namespace MiniX.Backend.Repositories
         public PostRepository(IMongoDatabase database)
         {
             _posts = database.GetCollection<Post>("posts");
+        }
+
+        public async Task<string[]> SearchHashTags(string tag){
+            if (string.IsNullOrWhiteSpace(tag))
+                return Array.Empty<string>();
+
+            var pattern = $"^{System.Text.RegularExpressions.Regex.Escape(tag)}";
+            var filter = Builders<Post>.Filter.Regex(p => p.Hashtags,
+                new MongoDB.Bson.BsonRegularExpression(pattern, "i"));
+            var distinctTags = await _posts.Distinct<string>("Hashtags", filter).ToListAsync();
+            return distinctTags.ToArray();
         }
 
         public async Task<int> CountHtag(string tag)
