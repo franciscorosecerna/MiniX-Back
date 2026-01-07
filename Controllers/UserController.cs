@@ -153,7 +153,7 @@ namespace MiniX.Backend.Controllers
                 return Unauthorized();
 
             var result = await _userService.FollowUserAsync(currentUserId, id);
-            return Ok(new { result.success, result.followId });
+            return Ok(result);
         }
 
         [HttpDelete("{id}/follow")]

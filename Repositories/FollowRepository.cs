@@ -11,7 +11,7 @@ namespace MiniX.Backend.Repositories
         Task<List<Follow>> GetFollowersByUserIdAsync(string userId, int skip = 0, int limit = 20);
         Task<List<Follow>> GetFollowingByUserIdAsync(string userId, int skip = 0, int limit = 20);
         Task<bool> IsFollowingAsync(string followerId, string followingId);
-        Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId);
+        Task<bool> FollowUserAsync(string followerId, string followingId);
         Task<bool> UnfollowUserAsync(string followerId, string followingId);
         Task<int> GetFollowersCountAsync(string userId);
         Task<int> GetFollowingCountAsync(string userId);
@@ -103,92 +103,61 @@ namespace MiniX.Backend.Repositories
         public async Task<int> GetFollowingCountAsync(string userId)
             => (int)await _follows.CountDocumentsAsync(f => f.FollowerId == userId);
 
-        public async Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId)
+        public async Task<bool> FollowUserAsync(string followerId, string followingId)
         {
             if (followerId == followingId)
-            {
-                return (false, null);
-            }
+                return false;
 
             var follower = await _userRepository.GetByIdAsync(followerId);
             var following = await _userRepository.GetByIdAsync(followingId);
 
             if (follower == null || following == null)
-            {
-                return (false, null);
-            }
+                return false;
 
             var existingFollow = await GetFollowAsync(followerId, followingId);
             if (existingFollow != null)
-            {
-                return (false, existingFollow.Id);
-            }
+                return false;
 
-            using var session = await _mongoClient.StartSessionAsync();
-            // session.StartTransaction();
+            var follow = new Follow
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                FollowerId = followerId,
+                FollowingId = followingId,
+                CreatedAt = DateTime.UtcNow
+            };
 
             try
             {
-                var follow = new Follow
-                {
-                    Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                    FollowerId = followerId,
-                    FollowingId = followingId,
-                    CreatedAt = DateTime.UtcNow
-                };
+                await _follows.InsertOneAsync(follow);
 
-                await _follows.InsertOneAsync(session, follow);
+                await _userRepository.UpdateFollowingCountAsync(followerId, 1);
+                await _userRepository.UpdateFollowersCountAsync(followingId, 1);
 
-                await _userRepository.UpdateFollowingCountAsync(followerId, 1, session);
-
-                await _userRepository.UpdateFollowersCountAsync(followingId, 1, session);
-
-                // await session.CommitTransactionAsync();
-
-                return (true, follow.Id);
+                return true;
             }
-            catch (Exception)
+            catch
             {
-                // await session.AbortTransactionAsync();
-                return (false, null);
+                return false;
             }
         }
 
         public async Task<bool> UnfollowUserAsync(string followerId, string followingId)
         {
-            var existingFollow = await GetFollowAsync(followerId, followingId);
-            if (existingFollow == null)
-            {
-                return false;
-            }
+            var deleteResult = await _follows.DeleteOneAsync(
+                f => f.FollowerId == followerId && f.FollowingId == followingId);
 
-            using var session = await _mongoClient.StartSessionAsync();
-            // session.StartTransaction();
+            if (deleteResult.DeletedCount == 0)
+                return false;
 
             try
             {
-                var deleteResult = await _follows.DeleteOneAsync(
-                    session,
-                    f => f.FollowerId == followerId && f.FollowingId == followingId
-                );
-
-                if (deleteResult.DeletedCount == 0)
-                {
-                    // await session.AbortTransactionAsync();
-                    return false;
-                }
-
-                await _userRepository.UpdateFollowingCountAsync(followerId, -1, session);
-
-                await _userRepository.UpdateFollowersCountAsync(followingId, -1, session);
-
-                // await session.CommitTransactionAsync();
+                await _userRepository.UpdateFollowingCountAsync(followerId, -1);
+                await _userRepository.UpdateFollowersCountAsync(followingId, -1);
 
                 return true;
             }
-            catch (Exception)
+            catch
             {
-                // await session.AbortTransactionAsync();
                 return false;
             }
         }
