@@ -11,7 +11,7 @@ namespace MiniX.Backend.Repositories
         Task<List<Follow>> GetFollowersByUserIdAsync(string userId, int skip = 0, int limit = 20);
         Task<List<Follow>> GetFollowingByUserIdAsync(string userId, int skip = 0, int limit = 20);
         Task<bool> IsFollowingAsync(string followerId, string followingId);
-        Task<bool> FollowUserAsync(string followerId, string followingId);
+        Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId);
         Task<bool> UnfollowUserAsync(string followerId, string followingId);
         Task<int> GetFollowersCountAsync(string userId);
         Task<int> GetFollowingCountAsync(string userId);
@@ -103,20 +103,20 @@ namespace MiniX.Backend.Repositories
         public async Task<int> GetFollowingCountAsync(string userId)
             => (int)await _follows.CountDocumentsAsync(f => f.FollowerId == userId);
 
-        public async Task<bool> FollowUserAsync(string followerId, string followingId)
+        public async Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId)
         {
             if (followerId == followingId)
-                return false;
+                return (false, null);
 
             var follower = await _userRepository.GetByIdAsync(followerId);
             var following = await _userRepository.GetByIdAsync(followingId);
 
             if (follower == null || following == null)
-                return false;
+                return (false, null);
 
             var existingFollow = await GetFollowAsync(followerId, followingId);
             if (existingFollow != null)
-                return false;
+                return (false, existingFollow.Id);
 
             var follow = new Follow
             {
@@ -133,11 +133,11 @@ namespace MiniX.Backend.Repositories
                 await _userRepository.UpdateFollowingCountAsync(followerId, 1);
                 await _userRepository.UpdateFollowersCountAsync(followingId, 1);
 
-                return true;
+                return (true, follow.Id);
             }
             catch
             {
-                return false;
+                return (false, null);
             }
         }
 
