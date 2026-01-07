@@ -125,7 +125,7 @@ namespace MiniX.Backend.Repositories
             }
 
             using var session = await _mongoClient.StartSessionAsync();
-            // session.StartTransaction();
+            session.StartTransaction();
 
             try
             {
@@ -143,13 +143,13 @@ namespace MiniX.Backend.Repositories
 
                 await _userRepository.UpdateFollowersCountAsync(followingId, 1, session);
 
-                // await session.CommitTransactionAsync();
+                await session.CommitTransactionAsync();
 
                 return (true, follow.Id);
             }
             catch (Exception)
             {
-                // await session.AbortTransactionAsync();
+                await session.AbortTransactionAsync();
                 return (false, null);
             }
         }
@@ -163,7 +163,7 @@ namespace MiniX.Backend.Repositories
             }
 
             using var session = await _mongoClient.StartSessionAsync();
-            // session.StartTransaction();
+            session.StartTransaction();
 
             try
             {
@@ -174,7 +174,7 @@ namespace MiniX.Backend.Repositories
 
                 if (deleteResult.DeletedCount == 0)
                 {
-                    // await session.AbortTransactionAsync();
+                    await session.AbortTransactionAsync();
                     return false;
                 }
 
@@ -182,13 +182,13 @@ namespace MiniX.Backend.Repositories
 
                 await _userRepository.UpdateFollowersCountAsync(followingId, -1, session);
 
-                // await session.CommitTransactionAsync();
+                await session.CommitTransactionAsync();
 
                 return true;
             }
             catch (Exception)
             {
-                // await session.AbortTransactionAsync();
+                await session.AbortTransactionAsync();
                 return false;
             }
         }
