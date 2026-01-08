@@ -18,7 +18,7 @@ namespace MiniX.Backend.Services
         Task<bool> DeleteUserAsync(string id);
         Task<bool> IsUsernameAvailableAsync(string username);
         Task<bool> IsEmailAvailableAsync(string email);
-        Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId);
+        Task<bool> FollowUserAsync(string followerId, string followingId);
         Task<bool> UnfollowUserAsync(string followerId, string followingId);
         Task<bool> IsFollowingAsync(string followerId, string followingId);
         Task<List<User>> GetFollowersAsync(string userId, int skip = 0, int limit = 20);
@@ -188,32 +188,37 @@ namespace MiniX.Backend.Services
             return !await _userRepository.EmailExistsAsync(email);
         }
 
-        public async Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId)
+        public async Task<bool> FollowUserAsync(string followerId, string followingId)
         {
-            if (string.IsNullOrWhiteSpace(followerId)) throw new ArgumentException(null, nameof(followerId));
-            if (string.IsNullOrWhiteSpace(followingId)) throw new ArgumentException(null, nameof(followingId));
-            if (followerId == followingId) throw new InvalidOperationException("Un usuario no puede seguirse a sí mismo");
+            if (string.IsNullOrWhiteSpace(followerId)) 
+                throw new ArgumentException("FollowerId inválido", nameof(followerId));
+
+            if (string.IsNullOrWhiteSpace(followingId)) 
+                throw new ArgumentException("FollowingId inválido", nameof(followingId));
+
+            if (followerId == followingId) 
+                throw new InvalidOperationException("Un usuario no puede seguirse a sí mismo");
 
             var result = await _followRepository.FollowUserAsync(followerId, followingId);
 
             if (!result.success && result.followId != null)
                 throw new InvalidOperationException("Ya estás siguiendo a este usuario");
 
-            if (!result.success)
-                throw new InvalidOperationException("No se pudo completar la operación de seguir al usuario");
-
-            return result;
+            return result.success;
         }
 
         public async Task<bool> UnfollowUserAsync(string followerId, string followingId)
         {
-            if (string.IsNullOrWhiteSpace(followerId)) throw new ArgumentException(null, nameof(followerId));
-            if (string.IsNullOrWhiteSpace(followingId)) throw new ArgumentException(null, nameof(followingId));
-            if (followerId == followingId) throw new InvalidOperationException("Un usuario no puede dejar de seguirse a sí mismo");
+            if (string.IsNullOrWhiteSpace(followerId))
+                throw new ArgumentException("FollowerId inválido", nameof(followerId));
 
-            var result = await _followRepository.UnfollowUserAsync(followerId, followingId);
-            if (!result) throw new InvalidOperationException("No estás siguiendo a este usuario o la operación falló");
-            return result;
+            if (string.IsNullOrWhiteSpace(followingId))
+                throw new ArgumentException("FollowingId inválido", nameof(followingId));
+
+            if (followerId == followingId)
+                throw new InvalidOperationException("Un usuario no puede seguirse a sí mismo");
+
+            return await _followRepository.UnfollowUserAsync(followerId, followingId);
         }
 
         public async Task<bool> IsFollowingAsync(string followerId, string followingId)

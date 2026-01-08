@@ -152,8 +152,15 @@ namespace MiniX.Backend.Controllers
             if (string.IsNullOrEmpty(currentUserId))
                 return Unauthorized();
 
-            var result = await _userService.FollowUserAsync(currentUserId, id);
-            return Ok(new { result.success, result.followId });
+            try
+            {
+                var result = await _userService.FollowUserAsync(currentUserId, id);
+                return Ok(result);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpDelete("{id}/follow")]
@@ -164,8 +171,15 @@ namespace MiniX.Backend.Controllers
             if (string.IsNullOrEmpty(currentUserId))
                 return Unauthorized();
 
-            var result = await _userService.UnfollowUserAsync(currentUserId, id);
-            return Ok(result);
+            try
+            {
+                var result = await _userService.UnfollowUserAsync(currentUserId, id);
+                return Ok(result);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("{id}/is-following")]
