@@ -64,5 +64,21 @@ namespace MiniX.Backend.Controllers
             var ret = await _userService.PasswordResetAsync(dto.id, dto.newpass);
             return Ok(ret);
         }
+
+        public record ToggleAdminDto(bool isAdmin, string id);
+        [HttpPatch("give")]
+        [Authorize(Roles = "Admin")]
+        public IActionResult ToggleUserAdmin([FromBody] ToggleAdminDto dto) {
+            if (string.IsNullOrWhiteSpace(dto.id)) {
+                return BadRequest(new { message = "falta definir que usuario quiere modificar" });
+            }
+
+            var ret = _userService.ToggleAdmin(dto.isAdmin, dto.id);
+            if (ret.Result) {
+                return Ok(new { message = "Usuario modificado correctamente" });
+            } else {
+                return StatusCode(500, new { message = "Error al modificar el usuario" });
+            }
+        }
     }
 }

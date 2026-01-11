@@ -27,6 +27,7 @@ namespace MiniX.Backend.Services
         Task<int> GetFollowingCountAsync(string userId);
         Task<List<User>> SearchUsersAsync(string searchTerm, int limit = 10);
         Task<bool> ValidateUserAsync(string userId);
+        Task<bool> ToggleAdmin(bool isAdmin, string userId);
     }
 
     public class UserService : IUserService
@@ -44,8 +45,14 @@ namespace MiniX.Backend.Services
             _imageService = imageService;
         }
 
+
         private static string NormalizeUsername(string username)
             => username?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        public async Task<bool> ToggleAdmin(bool isAdmin, string userId){
+            if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("El ID no puede estar vacío", nameof(userId));
+            return await _userRepository.ToggleAdmin(isAdmin, userId);
+        }
 
         public async Task<User?> GetUserByIdAsync(string id)
         {
@@ -190,13 +197,13 @@ namespace MiniX.Backend.Services
 
         public async Task<bool> FollowUserAsync(string followerId, string followingId)
         {
-            if (string.IsNullOrWhiteSpace(followerId)) 
+            if (string.IsNullOrWhiteSpace(followerId))
                 throw new ArgumentException("FollowerId inválido", nameof(followerId));
 
-            if (string.IsNullOrWhiteSpace(followingId)) 
+            if (string.IsNullOrWhiteSpace(followingId))
                 throw new ArgumentException("FollowingId inválido", nameof(followingId));
 
-            if (followerId == followingId) 
+            if (followerId == followingId)
                 throw new InvalidOperationException("Un usuario no puede seguirse a sí mismo");
 
             var result = await _followRepository.FollowUserAsync(followerId, followingId);

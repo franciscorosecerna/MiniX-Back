@@ -26,6 +26,7 @@ namespace MiniX.Backend.Repositories
         Task<User?> GetByRefreshTokenAsync(string refreshToken);
         Task RemoveExpiredRefreshTokensAsync(string userId);
         Task<string?> GetImagePublicIdByUrlAsync(string imageUrl);
+        Task<bool> ToggleAdmin(bool isAdmin, string userId);
     }
 
     public class UserRepository : IUserRepository
@@ -35,6 +36,12 @@ namespace MiniX.Backend.Repositories
         public UserRepository(IMongoDatabase database)
         {
             _users = database.GetCollection<User>("users");
+        }
+
+        public async Task<bool> ToggleAdmin(bool isAdmin, string userId){
+            var update = Builders<User>.Update.Set(u => u.Role, isAdmin ? "User" : "Admin");
+            var result = await _users.UpdateOneAsync(u => u.Id == userId, update);
+            return result.ModifiedCount > 0;
         }
 
         public async Task<User?> GetByIdAsync(string id)
@@ -111,11 +118,11 @@ namespace MiniX.Backend.Repositories
 
         public async Task<List<User>> SearchByUsernameAsync(string searchTerm, int limit = 10)
         {
-            if (string.IsNullOrWhiteSpace(searchTerm)) 
+            if (string.IsNullOrWhiteSpace(searchTerm))
                 return [];
 
             var pattern = $"^{Regex.Escape(searchTerm)}";
-            var filter = Builders<User>.Filter.Regex(u => u.Username, 
+            var filter = Builders<User>.Filter.Regex(u => u.Username,
                 new MongoDB.Bson.BsonRegularExpression(pattern, "i"));
             return await _users.Find(filter).Limit(limit).ToListAsync();
         }
@@ -123,7 +130,7 @@ namespace MiniX.Backend.Repositories
         public async Task<List<User>> GetUsersByIdsAsync(IEnumerable<string> ids)
         {
             var idList = ids.Where(i => !string.IsNullOrWhiteSpace(i)).Distinct().ToList();
-            if (idList.Count == 0) 
+            if (idList.Count == 0)
                 return [];
 
             var filter = Builders<User>.Filter.In(u => u.Id, idList);
