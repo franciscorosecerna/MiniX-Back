@@ -43,6 +43,9 @@ namespace MiniX.Backend.Models
         [BsonElement("role")]
         public string Role { get; set; } = "User";
 
+        [BsonElement("otp")]
+        public string? Otp { get; set; }
+
         [BsonElement("refreshTokens")]
         public List<RefreshToken> RefreshTokens { get; set; } = [];
     }

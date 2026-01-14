@@ -28,6 +28,7 @@ namespace MiniX.Backend.Services
         Task<List<User>> SearchUsersAsync(string searchTerm, int limit = 10);
         Task<bool> ValidateUserAsync(string userId);
         Task<bool> ToggleAdmin(bool isAdmin, string userId);
+        bool SetOtp(string? otp, string userId);
     }
 
     public class UserService : IUserService
@@ -48,6 +49,19 @@ namespace MiniX.Backend.Services
 
         private static string NormalizeUsername(string username)
             => username?.Trim().ToLowerInvariant() ?? string.Empty;
+
+
+            public bool SetOtp(string? otp, string userId){
+                if (otp == null) {
+                    var update = Builders<User>.Update.Unset(u => u.Otp);
+                    var result = _userRepository.UpdateAsync(userId, update);
+                    return result != null;
+                }
+                else if (otp.Length < 6 || otp.Contains(" ")) return false;
+                var updateSet = Builders<User>.Update.Set(u => u.Otp, otp);
+                var resultSet = _userRepository.UpdateAsync(userId, updateSet);
+                return resultSet != null;
+            }
 
         public async Task<bool> ToggleAdmin(bool isAdmin, string userId){
             if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("El ID no puede estar vacío", nameof(userId));
