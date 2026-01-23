@@ -9,10 +9,8 @@ namespace MiniX.Backend.Models
         [BsonRepresentation(BsonType.String)]
         public required string Id { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
         public required string UserId { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
         public required string PostId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

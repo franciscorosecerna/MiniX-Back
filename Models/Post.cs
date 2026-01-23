@@ -9,7 +9,6 @@ namespace MiniX.Backend.Models
         [BsonRepresentation(BsonType.String)]
         public required string Id { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
         [BsonElement("authorId")]
         public required string AuthorId { get; set; }
 

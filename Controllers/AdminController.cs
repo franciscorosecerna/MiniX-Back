@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MiniX.Backend.DTOs;
 using MiniX.Backend.Models;
@@ -12,10 +14,13 @@ namespace MiniX.Backend.Controllers
     {
         private readonly IUserService _userService;
         private readonly IPostService _postService;
-        public AdminController(IUserService userService, IPostService postService)
+        private readonly IAuthService _authService;
+
+        public AdminController(IUserService userService, IPostService postService, IAuthService authService)
         {
             _userService = userService;
             _postService = postService;
+            _authService = authService;
         }
 
         private UserResponseDto MapToDto(User user, int count)
@@ -36,10 +41,24 @@ namespace MiniX.Backend.Controllers
             };
         }
 
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? User.FindFirstValue("sub")
+                ?? HttpContext.Items["UserId"]?.ToString()
+                ?? string.Empty;
+        }
+
         [HttpGet("users")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> GetAllUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
+            var isAdmin = await _authService.CheckAdmin(GetCurrentUserId());
+            if (!isAdmin) {
+                return Unauthorized();
+            }
+
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
@@ -55,9 +74,14 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpPost("password")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> ChangeUserPasswordByUsername([FromBody] PasswordResetDto dto )
         {
+            var isAdmin = await _authService.CheckAdmin(GetCurrentUserId());
+            if (!isAdmin) {
+                return Unauthorized();
+            }
+
             if (dto.id == "") return BadRequest(new { message = "No esta definido el usuario, ¿Habra un bug en la pagina?" });
             if (dto.newpass == "" || dto.newpass.Length<8) return BadRequest(new { message = "No se ingreso una contraseña valida" });
 
@@ -67,8 +91,13 @@ namespace MiniX.Backend.Controllers
 
         public record ToggleAdminDto(bool isAdmin, string id);
         [HttpPatch("give")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public IActionResult ToggleUserAdmin([FromBody] ToggleAdminDto dto) {
+            var isAdmin = _authService.CheckAdmin(GetCurrentUserId()).Result;
+            if (!isAdmin) {
+                return Unauthorized();
+            }
+
             if (string.IsNullOrWhiteSpace(dto.id)) {
                 return BadRequest(new { message = "falta definir que usuario quiere modificar" });
             }

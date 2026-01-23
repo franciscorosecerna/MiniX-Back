@@ -98,10 +98,12 @@ namespace MiniX.Backend.Repositories
                 .AnyAsync();
 
         public async Task<int> GetFollowersCountAsync(string userId)
-            => (int)await _follows.CountDocumentsAsync(f => f.FollowingId == userId);
+        {
+            return (int)await _follows.CountAsync(f => f.FollowingId == userId);
+        }
 
         public async Task<int> GetFollowingCountAsync(string userId)
-            => (int)await _follows.CountDocumentsAsync(f => f.FollowerId == userId);
+            => (int)await _follows.CountAsync(f => f.FollowerId == userId);
 
         public async Task<(bool success, string? followId)> FollowUserAsync(string followerId, string followingId)
         {

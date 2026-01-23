@@ -9,10 +9,10 @@ namespace MiniX.Backend.Models
         [BsonRepresentation(BsonType.String)]
         public required string Id { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
+        
         public required string FollowerId { get; set; }
 
-        [BsonRepresentation(BsonType.ObjectId)]
+        
         public required string FollowingId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

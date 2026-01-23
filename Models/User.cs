@@ -20,7 +20,7 @@ namespace MiniX.Backend.Models
         public string Email { get; set; } = string.Empty;
 
         [BsonElement("passwordHash")]
-        public string PasswordHash { get; set; } = string.Empty;
+        public string? PasswordHash { get; set; } = string.Empty;
 
         [BsonElement("bio")]
         public string? Bio { get; set; }
@@ -43,10 +43,15 @@ namespace MiniX.Backend.Models
         [BsonElement("role")]
         public string Role { get; set; } = "User";
 
+        [BsonElement("providerAuth")]
+        public string AuthProvider { get; set; } = "local"; // local | google
+
         [BsonElement("otp")]
         public string? Otp { get; set; }
 
         [BsonElement("refreshTokens")]
         public List<RefreshToken> RefreshTokens { get; set; } = [];
+
     }
+
 }

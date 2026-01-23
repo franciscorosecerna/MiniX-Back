@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
 using MiniX.Backend.DTOs;
 using MiniX.Backend.Models;
 using MiniX.Backend.Services;
@@ -39,6 +38,8 @@ namespace MiniX.Backend.Controllers
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
                 ?? User.FindFirstValue("sub")
+                ?? User.FindFirstValue("uid")
+                ?? HttpContext.Items["UserId"]?.ToString()
                 ?? string.Empty;
         }
 
@@ -50,7 +51,7 @@ namespace MiniX.Backend.Controllers
         /// <response code="200">Returns the requested post</response>
         /// <response code="404">If the post is not found</response>
         [HttpGet("{id}")]
-        [AllowAnonymous]
+        [Authorize(Policy = "OptionalFirebase")]
         [ProducesResponseType(typeof(PostResponseDto), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetById(string id)
@@ -64,6 +65,7 @@ namespace MiniX.Backend.Controllers
                 return NotFound(new { message = "Autor no encontrado" });
 
             string youId = GetCurrentUserId();
+            // Console.WriteLine(string.Join(", ", HttpContext.Items.Select(x => $"{x.Key}: {x.Value}")));
             var isLiked = await _postService.LikeExistsAsync(post.Id, youId);
 
             var response = PostResponseDto.FromPost(post, user, isLiked);
@@ -79,7 +81,7 @@ namespace MiniX.Backend.Controllers
         /// <returns>A list of posts from the specified user</returns>
         /// <response code="200">Returns the list of user posts</response>
         [HttpGet("user/{userName}")]
-        [AllowAnonymous]
+        [Authorize(Policy = "OptionalFirebase")]
         [ProducesResponseType(typeof(List<PostResponseDto>), 200)]
         public async Task<IActionResult> GetByUser(string userName, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -87,12 +89,12 @@ namespace MiniX.Backend.Controllers
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
             string youId = GetCurrentUserId();
-
             var user = await _userService.GetUserByUsernameAsync(userName);
             if(user == null)
                 return NotFound(new { message = "Usuario no encontrado" });
 
             var posts = await _postService.GetUserPostsAsync(user.Id, page, pageSize);
+            Console.WriteLine("t");
             var totalCount = await _postService.GetUserPostsCountAsync(user.Id);
 
             AddPaginationHeaders(page, pageSize, totalCount);
@@ -117,7 +119,7 @@ namespace MiniX.Backend.Controllers
         /// <returns>A list of replies to the specified post</returns>
         /// <response code="200">Returns the list of post replies</response>
         [HttpGet("{id}/replies")]
-        [AllowAnonymous]
+        [Authorize(Policy = "OptionalFirebase")]
         [ProducesResponseType(typeof(List<PostResponseDto>), 200)]
         public async Task<IActionResult> GetReplies(string id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -158,7 +160,7 @@ namespace MiniX.Backend.Controllers
         /// <returns>A list of posts for the timeline</returns>
         /// <response code="200">Returns the timeline posts</response>
         [HttpGet("/timeline")]
-        [AllowAnonymous]
+        [Authorize(Policy = "OptionalFirebase")]
         [ProducesResponseType(typeof(List<PostResponseDto>), 200)]
         public async Task<IActionResult> GetTimeline([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -199,7 +201,7 @@ namespace MiniX.Backend.Controllers
         /// <returns>A list of posts containing the specified hashtag</returns>
         /// <response code="200">Returns the list of posts with the hashtag</response>
         [HttpGet("hashtag/{tag}")]
-        [AllowAnonymous]
+        [Authorize(Policy = "OptionalFirebase")]
         [ProducesResponseType(typeof(List<PostResponseDto>), 200)]
         public async Task<IActionResult> GetByHashtag(string tag, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -242,7 +244,7 @@ namespace MiniX.Backend.Controllers
         /// <response code="400">If the request data is invalid</response>
         /// <response code="401">If the user is not authenticated</response>
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         [ProducesResponseType(typeof(PostResponseDto), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -289,7 +291,7 @@ namespace MiniX.Backend.Controllers
         /// <response code="403">If the user is not authorized to update this post</response>
         /// <response code="404">If the post is not found</response>
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         [ProducesResponseType(typeof(PostResponseDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -354,7 +356,7 @@ namespace MiniX.Backend.Controllers
         /// <response code="403">If the user is not authorized to delete this post</response>
         /// <response code="404">If the post is not found</response>
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         [ProducesResponseType(204)]
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
@@ -381,7 +383,7 @@ namespace MiniX.Backend.Controllers
         /// <response code="404">If the post is not found</response>
         /// <response code="409">If the user has already liked this post</response>
         [HttpPost("{id}/like")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
@@ -406,7 +408,7 @@ namespace MiniX.Backend.Controllers
         /// <response code="401">If the user is not authenticated</response>
         /// <response code="404">If the post is not found or the user hadn't liked it</response>
         [HttpDelete("{id}/like")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]

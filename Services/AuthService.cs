@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+using FirebaseAdmin.Auth;
+using Microsoft.IdentityModel.Tokens;
 using MiniX.Backend.Models;
 using MiniX.Backend.Repositories;
 using System.IdentityModel.Tokens.Jwt;
@@ -12,10 +13,14 @@ namespace MiniX.Backend.Services
     public interface IAuthService
     {
         Task<(bool Success, string Message)> RegisterAsync(string username, string email, string password, string displayName);
-        Task<(bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, bool IsAdmin, string Message)> LoginAsync(string username, string password);
+        Task<(string Email, bool Success, string? AccessToken, string? RefreshToken, string? Displayname, string? UserName, string? ImageUrl, bool IsAdmin, string Message)> LoginAsync(string username, string password);
+        Task<(bool Success, string Message)> RegisterSsoAsync(string Username, string Email, string uid, string token);
         Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)> RefreshAsync(string refreshToken);
         Task<bool> RevokeTokenAsync(string userId, string refreshToken);
         Task<bool> RevokeAllTokensAsync(string userId);
+        Task<User?> LoginSsoAsync(string token, string uid);
+        Task<bool> CheckAdmin(string uid);
+
     }
 
     public class AuthService : IAuthService
@@ -29,6 +34,78 @@ namespace MiniX.Backend.Services
             _users = users;
             _config = config;
             _logger = logger;
+        }
+
+        public async Task<bool> CheckAdmin(string uid) {
+            var usu = await _users.GetByIdAsync(uid);
+            if (usu == null) return false;
+            var ret =  usu.Role.Contains("Admin");
+            return ret;
+        }
+
+        public async Task<(bool Success, string Message)> RegisterSsoAsync(
+            string Username, string Email, string uid, string token
+        ) {
+            try{
+                var handler = new JwtSecurityTokenHandler();
+                var jsonToken = handler.ReadJwtToken(token);
+
+                var tokenUid = jsonToken.Subject;
+                var tokenEmail = jsonToken.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+                var tokenDisplayName = jsonToken.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+                var tokenPicture = jsonToken.Claims.FirstOrDefault(c => c.Type == "picture")?.Value;
+
+                // Compare with provided data
+                if (tokenUid != uid){
+                    return (false, "No Coinside la uid.");
+                }
+
+                if (tokenEmail != Email){
+                    return (false, "No coinside el email.");
+                }
+
+                var existingUser = await _users.GetByIdAsync(uid);
+                if (existingUser != null){
+                    return (false, "User already exists.");
+                }
+
+                // Create new user
+                var newUser = new User
+                {
+                    Id = uid,
+                    Username = Username.ToLower(),
+                    Email = Email.ToLower(),
+                    DisplayName = Username,
+                    CreatedAt = DateTime.UtcNow,
+                    AuthProvider = "google",
+                    ProfileImageUrl = tokenPicture
+                };
+
+                await _users.CreateAsync(newUser);
+
+                _logger.LogInformation("SSO User registered: {Username}", Username);
+                return (true, "Se registro el usuario de forma exitosa.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error {Username}", Username);
+                return (false, "Ocurrio un error durante la creacion del usuario.");
+            }
+        }
+
+
+        public async Task<User?> LoginSsoAsync(string token, string uid) {
+            FirebaseToken decodedToken = await FirebaseAuth.DefaultInstance
+                .VerifyIdTokenAsync(token);
+
+            string uid2 = decodedToken.Uid;
+
+            if (uid == uid2){
+                var user = await _users.GetByIdAsync(uid2);
+                return user;
+            }else{
+                return null;
+            }
         }
 
         public async Task<(bool Success, string Message)> RegisterAsync(string username, string email, string password, string displayName)
@@ -74,7 +151,7 @@ namespace MiniX.Backend.Services
             return (true, "Usuario registrado correctamente.");
         }
 
-        public async Task<(bool Success, string? AccessToken, string? RefreshToken, 
+        public async Task<(string Email, bool Success, string? AccessToken, string? RefreshToken,
             string? Displayname, string? UserName, string? ImageUrl, bool IsAdmin, string Message)>
             LoginAsync(string username, string password)
         {
@@ -88,7 +165,7 @@ namespace MiniX.Backend.Services
             if (user == null || !validPassword)
             {
                 _logger.LogWarning("Login fallido para: {Username}", username);
-                return (false, null, null, null, null, null, false, "Credenciales inválidas.");
+                return ("", false, null, null, null, null, null, false, "Credenciales inválidas.");
             }
 
             bool isAdmin = false;
@@ -97,18 +174,13 @@ namespace MiniX.Backend.Services
                 isAdmin = true;
             }
 
-            if (user.Username == "fedpo")
-            {
-                user.Role = "Admin";
-            }
-
             var accessToken = GenerateJwtToken(user);
             var refreshToken = CreateRefreshToken();
 
             await _users.RemoveExpiredRefreshTokensAsync(user.Id);
             await _users.AddRefreshTokenAsync(user.Id, refreshToken);
 
-            return (true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.Username, user.ProfileImageUrl, isAdmin, "Login exitoso.");
+            return (user.Email, true, accessToken, refreshToken.PlainToken!, user.DisplayName, user.Username, user.ProfileImageUrl, isAdmin, "Login exitoso.");
         }
 
         public async Task<(bool Success, string? AccessToken, string? RefreshToken, string Message)>

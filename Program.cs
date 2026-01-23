@@ -1,4 +1,7 @@
 using CloudinaryDotNet;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -98,7 +101,31 @@ builder.Services
         };
     });
 
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromFile("./oauth-minix-firebase-adminsdk-fbsvc-82472f40b1.json"),
+});
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddAuthorization();
+
+// Nuevo tipo de auth
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("FirebaseOrDefault", policy =>
+    {
+        policy.Requirements.Add(new FirebaseAuthorizationRequirement());
+    });
+
+    options.AddPolicy("OptionalFirebase", policy =>
+    {
+        policy.Requirements.Add(new OptionalFirebaseAuthorizationRequirement());
+    });
+});
+
+builder.Services.AddSingleton<IAuthorizationHandler, FirebaseAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, OptionalFirebaseAuthorizationHandler>();
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -122,6 +149,15 @@ builder.Services.AddSwaggerGen(c =>
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
+    });
+
+    c.AddSecurityDefinition("Firebase", new OpenApiSecurityScheme
+    {
+        Description = "Firebase ID Token",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Firebase"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement

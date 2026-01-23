@@ -12,13 +12,22 @@ namespace MiniX.Backend.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-        public UserController(IUserService userService)
+        private readonly IAuthService _authService;
+
+        public UserController(IUserService userService, IAuthService authService)
         {
             _userService = userService;
+            _authService = authService;
         }
 
-        private string? GetCurrentUserId()
-            => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("sub")
+                ?? User.FindFirstValue("uid")
+                ?? HttpContext.Items["UserId"]?.ToString()
+                ?? string.Empty;
+        }
 
         private UserResponseDto MapToDto(User user)
         {
@@ -58,7 +67,7 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpGet("email/{email}")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> GetUserByEmail(string email)
         {
             var currentUserId = GetCurrentUserId();
@@ -74,7 +83,7 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> UpdateUser(string id, [FromForm] UpdateUserRequest request)
         {
             var currentUserId = GetCurrentUserId();
@@ -90,12 +99,18 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpPut("{id}/password")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> ChangePassword(string id, [FromBody] ChangePasswordRequest request)
         {
             var currentUserId = GetCurrentUserId();
             if (currentUserId != id)
                 return Forbid();
+
+            var usu = _userService.GetUserByIdAsync(currentUserId).Result;
+
+            if (usu?.AuthProvider == "google") {
+                return BadRequest(new { message = "Los usuarios logeados con google no pueden cambiar " });
+            }
 
             var result = await _userService.ChangePasswordAsync(id, request.CurrentPassword, request.NewPassword);
             if (!result)
@@ -105,11 +120,14 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> DeleteUser(string id)
         {
             var currentUserId = GetCurrentUserId();
-            if (currentUserId != id && !User.IsInRole("Admin"))
+
+            var isAdmin = await _authService.CheckAdmin(currentUserId);
+
+            if (currentUserId != id && !isAdmin)
                 return Forbid();
 
             var user = await _userService.GetUserByIdAsync(id);
@@ -145,7 +163,7 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpPost("{id}/follow")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> FollowUser(string id)
         {
             var currentUserId = GetCurrentUserId();
@@ -164,7 +182,7 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpDelete("{id}/follow")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> UnfollowUser(string id)
         {
             var currentUserId = GetCurrentUserId();
@@ -183,7 +201,7 @@ namespace MiniX.Backend.Controllers
         }
 
         [HttpGet("{id}/is-following")]
-        [Authorize]
+        [Authorize(Policy = "FirebaseOrDefault")]
         public async Task<IActionResult> IsFollowing(string id)
         {
             var currentUserId = GetCurrentUserId();
