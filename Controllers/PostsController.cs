@@ -94,7 +94,7 @@ namespace MiniX.Backend.Controllers
                 return NotFound(new { message = "Usuario no encontrado" });
 
             var posts = await _postService.GetUserPostsAsync(user.Id, page, pageSize);
-            Console.WriteLine("t");
+            // Console.WriteLine("t");
             var totalCount = await _postService.GetUserPostsCountAsync(user.Id);
 
             AddPaginationHeaders(page, pageSize, totalCount);
