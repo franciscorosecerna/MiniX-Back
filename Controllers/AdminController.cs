@@ -52,7 +52,7 @@ namespace MiniX.Backend.Controllers
 
         [HttpGet("users")]
         [Authorize(Policy = "FirebaseOrDefault")]
-        public async Task<IActionResult> GetAllUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetAllUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string q = "")
         {
             var isAdmin = await _authService.CheckAdmin(GetCurrentUserId());
             if (!isAdmin) {
@@ -62,7 +62,7 @@ namespace MiniX.Backend.Controllers
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
-            var users = await _userService.GetUsersAsync(page, pageSize);
+            var users = await _userService.GetUsersAsync(page, pageSize, q);
 
             List<UserResponseDto> response = [];
             foreach (var user in users)

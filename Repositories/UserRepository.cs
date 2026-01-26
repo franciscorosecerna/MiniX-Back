@@ -10,7 +10,7 @@ namespace MiniX.Backend.Repositories
         Task<User?> GetByIdAsync(string id);
         Task<User?> GetByUsernameAsync(string username);
         Task<User?> GetByEmailAsync(string email);
-        Task<List<User>> GetAllAsync(int skip = 0, int limit = 20);
+        Task<List<User>> GetAllAsync(int skip = 0, int limit = 20, string q = "");
         Task<User> CreateAsync(User user);
         Task<bool> UpdateAsync(string id, UpdateDefinition<User> update);
         Task<bool> DeleteAsync(string id);
@@ -55,11 +55,16 @@ namespace MiniX.Backend.Repositories
             => await _users.Find(u => u.Email == email)
                 .FirstOrDefaultAsync();
 
-        public async Task<List<User>> GetAllAsync(int skip = 0, int limit = 20)
-            => await _users.Find(_ => true)
-            .Skip(skip)
-            .Limit(limit)
-            .ToListAsync();
+        public async Task<List<User>> GetAllAsync(int skip = 0, int limit = 20, string q = "") {
+            var filter = string.IsNullOrWhiteSpace(q)
+                ? Builders<User>.Filter.Empty
+                : Builders<User>.Filter.Regex(u => u.Username, new MongoDB.Bson.BsonRegularExpression(q, "i"));
+
+            return await _users.Find(filter)
+                .Skip(skip)
+                .Limit(limit)
+                .ToListAsync();
+        }
 
         public async Task<User> CreateAsync(User user)
         {

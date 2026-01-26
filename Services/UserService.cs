@@ -11,7 +11,7 @@ namespace MiniX.Backend.Services
         Task<User?> GetUserByIdAsync(string id);
         Task<User?> GetUserByUsernameAsync(string username);
         Task<User?> GetUserByEmailAsync(string email);
-        Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20);
+        Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20, string q = "");
         Task<bool> UpdateUserAsync(string id, UpdateUserRequest update);
         Task<bool> ChangePasswordAsync(string id, string currentPlainPassword, string newPlainPassword);
         Task<bool> PasswordResetAsync(string id, string newPlainPassword);
@@ -86,10 +86,11 @@ namespace MiniX.Backend.Services
             return await _userRepository.GetByEmailAsync(email);
         }
 
-        public async Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20)
+        public async Task<List<User>> GetUsersAsync(int skip = 0, int limit = 20, string q = "")
         {
+
             skip = (skip - 1) * limit;
-            return await _userRepository.GetAllAsync(skip, limit);
+            return await _userRepository.GetAllAsync(skip, limit, q);
         }
 
         public async Task<bool> UpdateUserAsync(string id, UpdateUserRequest user)
