@@ -73,9 +73,9 @@ namespace MiniX.Backend.Controllers
             // Validación de Username
             if (string.IsNullOrWhiteSpace(dto.Username)) return BadRequest(new { message = "El nombre de usuario es requerido." });
 
-            if (dto.Username.Length < 3 || dto.Username.Length > 50) return BadRequest(new { message = "El nombre de usuario debe tener entre 3 y 50 caracteres." });
-
-            if (!System.Text.RegularExpressions.Regex.IsMatch(dto.Username, @"^[a-zA-Z0-9_]+$")) return BadRequest(new { message = "El nombre de usuario solo puede contener letras, números y guiones bajos." });
+            string Username = System.Text.RegularExpressions.Regex.Replace(dto.Username, @"[^a-zA-Z0-9_]", "");
+            if (Username.Length < 3 || Username.Length > 50) return BadRequest(new { message = "El nombre de usuario debe tener entre 3 y 50 caracteres." });
+            if (!System.Text.RegularExpressions.Regex.IsMatch(Username, @"^[a-zA-Z0-9_]+$")) return BadRequest(new { message = "El nombre de usuario solo puede contener letras, números y guiones bajos." });
 
             // Validación de Email
             if (string.IsNullOrWhiteSpace(dto.Email))
@@ -93,7 +93,7 @@ namespace MiniX.Backend.Controllers
 
             // Llamada al servicio de autenticación
             var result = await _authService.RegisterSsoAsync(
-                dto.Username,
+                Username,
                 dto.Email,
                 dto.uid,
                 dto.token
