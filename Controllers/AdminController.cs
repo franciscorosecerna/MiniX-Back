@@ -62,7 +62,7 @@ namespace MiniX.Backend.Controllers
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
-            var users = await _userService.GetUsersAsync(page, pageSize, q);
+            var (users, hasMore) = await _userService.GetUsersAsync(page, pageSize, q);
 
             List<UserResponseDto> response = [];
             foreach (var user in users)
@@ -70,7 +70,8 @@ namespace MiniX.Backend.Controllers
                 var x = await _postService.GetUserPostsCountAsync(user.Id);
                 response.Add(MapToDto(user, x));
             }
-            return Ok(response);
+
+            return Ok(new { usuarios = response, hayMas = hasMore});
         }
 
         [HttpPost("password")]
