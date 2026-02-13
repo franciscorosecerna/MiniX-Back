@@ -76,9 +76,12 @@ namespace MiniX.Backend.Controllers
             if (user == null)
                 return NotFound(new { message = "Usuario no encontrado" });
 
-            if (user.Id != currentUserId && !User.IsInRole("Admin"))
-                return Forbid();
 
+            if (user.Id != currentUserId && user.Role != "Admin")
+            {
+                return Forbid();
+            }
+                
             return Ok(MapToDto(user));
         }
 
@@ -87,7 +90,9 @@ namespace MiniX.Backend.Controllers
         public async Task<IActionResult> UpdateUser(string id, [FromForm] UpdateUserRequest request)
         {
             var currentUserId = GetCurrentUserId();
-            if (currentUserId != id && !User.IsInRole("Admin"))
+            var admin = await _authService.CheckAdmin(id);
+
+            if (id != currentUserId && !admin)
                 return Forbid();
 
             var result = await _userService.UpdateUserAsync(id, request);
